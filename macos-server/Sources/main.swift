@@ -36,6 +36,9 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let ips = getLocalIPs()
         let ipList = ips.isEmpty ? "127.0.0.1" : ips.joined(separator: " or ")
         
+        // Start automatic USB-C cable bridge watchdog (auto-forwards 7100, 7101 whenever tablet is plugged)
+        USBLinkManager.shared.startAutoBridge()
+        
         print("""
         [Host] 🟢 Ready & Listening!
         • Mac IP Address(es): \(ipList)

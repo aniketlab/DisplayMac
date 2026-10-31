@@ -19,7 +19,8 @@ public final class NetworkServer {
     
     private let serverQueue = DispatchQueue(label: "com.displaymac.network.queue", qos: .userInteractive)
     private var frameSequenceNumber: UInt32 = 0
-    private var isSendingFrame = false
+    private var inFlightFrames = 0
+    private let maxInFlight = 2
     
     public init() {}
     
@@ -248,10 +249,8 @@ public final class NetworkServer {
     public func broadcastVideoFrame(naluData: Data, isKeyframe: Bool, pts: CMTime) {
         guard let connection = videoConnection, connection.state == .ready else { return }
         
-        // Zero-lag in-flight frame guard:
-        // If previous frame is still in transit over the TCP socket, drop intermediate P-frames
-        // so network queue latency NEVER accumulates!
-        if isSendingFrame && !isKeyframe {
+        // Zero-lag in-flight frame guard (Allows up to 2 frames in flight to sustain 120 FPS without buffer bloat)
+        if inFlightFrames >= maxInFlight && !isKeyframe {
             return
         }
         
@@ -278,9 +277,10 @@ public final class NetworkServer {
         
         packet.append(naluData)
         
-        isSendingFrame = true
+        inFlightFrames += 1
         connection.send(content: packet, completion: .contentProcessed({ [weak self] _ in
-            self?.isSendingFrame = false
+            guard let self = self else { return }
+            self.inFlightFrames = max(0, self.inFlightFrames - 1)
         }))
     }
 }

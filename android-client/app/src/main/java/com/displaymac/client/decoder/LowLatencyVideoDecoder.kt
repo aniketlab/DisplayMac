@@ -58,7 +58,7 @@ class LowLatencyVideoDecoder(
         if (!isRunning) return
 
         try {
-            val inputIndex = currentCodec.dequeueInputBuffer(0) // Zero-wait non-blocking
+            val inputIndex = currentCodec.dequeueInputBuffer(4000) // 4ms wait to prevent frame drops
             if (inputIndex >= 0) {
                 val inputBuffer: ByteBuffer? = currentCodec.getInputBuffer(inputIndex)
                 inputBuffer?.clear()

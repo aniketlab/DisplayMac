@@ -55,6 +55,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         configuration.showsCursor = true
         configuration.capturesAudio = false
         configuration.scalesToFit = false // Pixel-perfect 1:1 mapping, no blur
+        configuration.queueDepth = 5
         
         let scStream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try scStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQueue)
