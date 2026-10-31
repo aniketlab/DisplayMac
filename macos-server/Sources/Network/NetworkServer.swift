@@ -134,7 +134,7 @@ public final class NetworkServer {
                 return
             }
             
-            let magic = data.subdata(in: 0..<2).withUnsafeBytes { $0.load(as: UInt16.self).bigEndian }
+            let magic = data.readUInt16BE(at: 0)
             guard magic == ProtocolConstants.magic else {
                 print("[NetworkServer] Invalid packet magic: \(magic)")
                 self.readControlHeader(connection)
@@ -142,7 +142,7 @@ public final class NetworkServer {
             }
             
             let msgTypeRaw = data[3]
-            let payloadLength = data.subdata(in: 4..<8).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+            let payloadLength = data.readUInt32BE(at: 4)
             
             self.readControlPayload(connection, msgType: msgTypeRaw, length: Int(payloadLength))
         }

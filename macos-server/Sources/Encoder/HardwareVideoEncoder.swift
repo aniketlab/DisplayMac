@@ -96,10 +96,12 @@ public final class HardwareVideoEncoder {
         guard let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer),
               let dataBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return }
         
-        let isKeyframe = !CFDictionaryContainsKey(
-            unsafeBitCast(CFArrayGetValueAtIndex(CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false), 0), to: CFDictionary.self),
-            Unmanaged.passUnretained(kCMSampleAttachmentKey_NotSync).toOpaque()
-        )
+        var isKeyframe = false
+        if let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false),
+           CFArrayGetCount(attachments) > 0 {
+            let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFDictionary.self)
+            isKeyframe = !CFDictionaryContainsKey(dict, Unmanaged.passUnretained(kCMSampleAttachmentKey_NotSync).toOpaque())
+        }
         
         var packetData = Data()
         
@@ -120,21 +122,31 @@ public final class HardwareVideoEncoder {
             }
         }
         
-        // Extract Slice NALUs
+        // Extract Slice NALUs with 100% crash-proof unaligned byte reads (No ARM64 alignment trap)
         var totalLength = 0
         var dataPointer: UnsafeMutablePointer<Int8>?
         CMBlockBufferGetDataPointer(dataBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &totalLength, dataPointerOut: &dataPointer)
         
         if let pointer = dataPointer {
             var offset = 0
-            while offset < totalLength - 4 {
-                let lengthPrefixed = UInt32(bigEndian: pointer.advanced(by: offset).withMemoryRebound(to: UInt32.self, capacity: 1) { $0.pointee })
+            while offset + 4 <= totalLength {
+                let raw = UnsafeRawPointer(pointer).advanced(by: offset)
+                let b0 = UInt32(raw.load(fromByteOffset: 0, as: UInt8.self))
+                let b1 = UInt32(raw.load(fromByteOffset: 1, as: UInt8.self))
+                let b2 = UInt32(raw.load(fromByteOffset: 2, as: UInt8.self))
+                let b3 = UInt32(raw.load(fromByteOffset: 3, as: UInt8.self))
+                let lengthPrefixed = Int((b0 << 24) | (b1 << 16) | (b2 << 8) | b3)
                 offset += 4
                 
+                guard lengthPrefixed > 0, offset + lengthPrefixed <= totalLength else {
+                    break
+                }
+                
+                // Annex-B 4-byte start code 0x00000001
                 packetData.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
-                let nalBytes = UnsafeRawPointer(pointer.advanced(by: offset))
-                packetData.append(nalBytes.assumingMemoryBound(to: UInt8.self), count: Int(lengthPrefixed))
-                offset += Int(lengthPrefixed)
+                let nalBytes = UnsafeRawPointer(pointer).advanced(by: offset).assumingMemoryBound(to: UInt8.self)
+                packetData.append(nalBytes, count: lengthPrefixed)
+                offset += lengthPrefixed
             }
         }
         

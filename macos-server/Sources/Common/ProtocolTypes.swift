@@ -31,6 +31,24 @@ public struct ProtocolConstants {
     public static let bonjourServiceType = "_displaymac._tcp"
 }
 
+extension Data {
+    public func readUInt32BE(at offset: Int) -> UInt32 {
+        guard offset + 4 <= count else { return 0 }
+        let b0 = UInt32(self[offset])
+        let b1 = UInt32(self[offset + 1])
+        let b2 = UInt32(self[offset + 2])
+        let b3 = UInt32(self[offset + 3])
+        return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
+    }
+    
+    public func readUInt16BE(at offset: Int) -> UInt16 {
+        guard offset + 2 <= count else { return 0 }
+        let b0 = UInt16(self[offset])
+        let b1 = UInt16(self[offset + 1])
+        return (b0 << 8) | b1
+    }
+}
+
 public struct ClientHello {
     public let displayWidth: UInt32
     public let displayHeight: UInt32
@@ -41,10 +59,10 @@ public struct ClientHello {
     
     public init?(from data: Data) {
         guard data.count >= 18 else { return nil }
-        self.displayWidth = data.subdata(in: 0..<4).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-        self.displayHeight = data.subdata(in: 4..<8).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-        self.maxRefreshRate = data.subdata(in: 8..<12).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-        self.dpi = data.subdata(in: 12..<16).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+        self.displayWidth = data.readUInt32BE(at: 0)
+        self.displayHeight = data.readUInt32BE(at: 4)
+        self.maxRefreshRate = data.readUInt32BE(at: 8)
+        self.dpi = data.readUInt32BE(at: 12)
         self.codecMask = data[16]
         self.flags = data[17]
     }
@@ -94,17 +112,9 @@ public struct StylusPacket {
         guard data.count >= 18 else { return nil }
         self.action = data[0]
         self.buttons = data[1]
-        
-        let xBits = data.subdata(in: 2..<6).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-        self.normalizedX = Float(bitPattern: xBits)
-        
-        let yBits = data.subdata(in: 6..<10).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-        self.normalizedY = Float(bitPattern: yBits)
-        
-        let pressureBits = data.subdata(in: 10..<14).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-        self.pressure = Float(bitPattern: pressureBits)
-        
-        let tiltBits = data.subdata(in: 14..<18).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-        self.tilt = Float(bitPattern: tiltBits)
+        self.normalizedX = Float(bitPattern: data.readUInt32BE(at: 2))
+        self.normalizedY = Float(bitPattern: data.readUInt32BE(at: 6))
+        self.pressure = Float(bitPattern: data.readUInt32BE(at: 10))
+        self.tilt = Float(bitPattern: data.readUInt32BE(at: 14))
     }
 }
