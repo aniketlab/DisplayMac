@@ -57,7 +57,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         configuration.colorSpaceName = CGColorSpace.sRGB
         configuration.showsCursor = true
         configuration.scalesToFit = false // Pixel-perfect 1:1 mapping, no blur
-        configuration.queueDepth = 5
+        configuration.queueDepth = 3 // Minimum possible queue depth in ScreenCaptureKit to eliminate buffer latency
         
         // Enable high-fidelity 48kHz Stereo Audio capture
         configuration.capturesAudio = true

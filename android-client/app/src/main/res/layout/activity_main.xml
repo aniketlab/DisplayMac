@@ -312,6 +312,16 @@
             android:textSize="12sp"
             android:fontFamily="sans-serif-bold" />
 
+        <TextView
+            android:id="@+id/speedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:text="⚡ 0.0 Mbps"
+            android:textColor="#38BDF8"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-bold" />
+
         <!-- Vertical Divider -->
         <View
             android:layout_width="1dp"

@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var hudOverlay: View
     private lateinit var statusText: TextView
     private lateinit var fpsText: TextView
+    private lateinit var speedText: TextView
     private lateinit var btnDisconnect: AppCompatButton
 
     private lateinit var radarIcon: ImageView
@@ -91,6 +92,7 @@ class MainActivity : AppCompatActivity() {
         hudOverlay = findViewById(R.id.hudOverlay)
         statusText = findViewById(R.id.statusText)
         fpsText = findViewById(R.id.fpsText)
+        speedText = findViewById(R.id.speedText)
         btnDisconnect = findViewById(R.id.btnDisconnect)
 
         radarIcon = findViewById(R.id.radarIcon)
@@ -286,6 +288,11 @@ class MainActivity : AppCompatActivity() {
             },
             onAudioFrame = { pcm ->
                 audioPlayer?.playAudio(pcm)
+            },
+            onSpeedUpdated = { mbps ->
+                runOnUiThread {
+                    speedText.text = String.format(java.util.Locale.US, "⚡ %.1f Mbps", mbps)
+                }
             }
         )
         this.connectionManager = connManager

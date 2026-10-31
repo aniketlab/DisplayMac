@@ -33,6 +33,9 @@ class LowLatencyVideoDecoder(
             setInteger(MediaFormat.KEY_PRIORITY, 0) // Real-time priority
             setInteger(MediaFormat.KEY_LOW_LATENCY, 1) // Android low-latency flag
             setInteger(MediaFormat.KEY_OPERATING_RATE, 120)
+            try { setInteger("vendor.qcom-ext-dec-low-latency.enable", 1) } catch (_: Exception) {}
+            try { setInteger("vendor.low-latency.enable", 1) } catch (_: Exception) {}
+            try { setInteger("vendor.media.codec.low-latency", 1) } catch (_: Exception) {}
         }
 
         try {
@@ -58,27 +61,36 @@ class LowLatencyVideoDecoder(
         if (!isRunning) return
 
         try {
-            val inputIndex = currentCodec.dequeueInputBuffer(4000) // 4ms wait to prevent frame drops
+            // Immediate 0-wait dequeue for ultra-low latency
+            var inputIndex = currentCodec.dequeueInputBuffer(0)
+            if (inputIndex < 0) {
+                drainOutput(currentCodec)
+                inputIndex = currentCodec.dequeueInputBuffer(1000) // 1ms fallback
+            }
+
             if (inputIndex >= 0) {
                 val inputBuffer: ByteBuffer? = currentCodec.getInputBuffer(inputIndex)
                 inputBuffer?.clear()
                 inputBuffer?.put(naluData)
 
                 val flags = if (isKeyframe) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                // Pass PTS 0 to disable Surface timestamp pacing so frames display instantly with zero delay
+                // Pass PTS 0 to disable VSYNC pacing delay and render instantly
                 currentCodec.queueInputBuffer(inputIndex, 0, naluData.size, 0, flags)
             }
 
-            // Drain output buffers directly to Surface immediately
-            val bufferInfo = MediaCodec.BufferInfo()
-            var outputIndex = currentCodec.dequeueOutputBuffer(bufferInfo, 0)
-            while (outputIndex >= 0) {
-                currentCodec.releaseOutputBuffer(outputIndex, true)
-                updateStats()
-                outputIndex = currentCodec.dequeueOutputBuffer(bufferInfo, 0)
-            }
+            drainOutput(currentCodec)
         } catch (e: Exception) {
             Log.e(TAG, "Error during NALU decode", e)
+        }
+    }
+
+    private fun drainOutput(currentCodec: MediaCodec) {
+        val bufferInfo = MediaCodec.BufferInfo()
+        var outputIndex = currentCodec.dequeueOutputBuffer(bufferInfo, 0)
+        while (outputIndex >= 0) {
+            currentCodec.releaseOutputBuffer(outputIndex, true)
+            updateStats()
+            outputIndex = currentCodec.dequeueOutputBuffer(bufferInfo, 0)
         }
     }
 

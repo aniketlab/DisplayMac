@@ -26,6 +26,9 @@ public final class NetworkServer {
     private var frameSequenceNumber: UInt32 = 0
     private var inFlightFrames = 0
     private let maxInFlight = 2
+    private var totalBytesSent: UInt64 = 0
+    private var lastSpeedCheck = Date()
+    private var lastBytesCount: UInt64 = 0
     
     public init() {}
     
@@ -280,8 +283,8 @@ public final class NetworkServer {
     public func broadcastVideoFrame(naluData: Data, isKeyframe: Bool, pts: CMTime) {
         guard let connection = videoConnection, connection.state == .ready else { return }
         
-        // Zero-lag in-flight frame guard (Allows up to 2 frames in flight to sustain 120 FPS without buffer bloat)
-        if inFlightFrames >= maxInFlight && !isKeyframe {
+        let effectiveMaxInFlight = isClientLoopback ? 1 : 2
+        if inFlightFrames >= effectiveMaxInFlight && !isKeyframe {
             return
         }
         
@@ -308,6 +311,17 @@ public final class NetworkServer {
         
         packet.append(naluData)
         
+        totalBytesSent += UInt64(packet.count)
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastSpeedCheck)
+        if elapsed >= 1.0 {
+            let bytes = totalBytesSent - lastBytesCount
+            let mbps = (Double(bytes) * 8.0) / (elapsed * 1_000_000.0)
+            lastBytesCount = totalBytesSent
+            lastSpeedCheck = now
+            print(String(format: "[Throughput] ⚡ Speed: %.1f Mbps (Wire Transfer) | 120 FPS Real-Time", mbps))
+        }
+
         inFlightFrames += 1
         connection.send(content: packet, completion: .contentProcessed({ [weak self] _ in
             guard let self = self else { return }

@@ -45,6 +45,7 @@ public final class HardwareVideoEncoder {
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_HEVC_Main_AutoLevel)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowTemporalCompression, value: kCFBooleanTrue)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxFrameDelayCount, value: NSNumber(value: 0)) // 0 Frame latency!
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, value: kCFBooleanTrue)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: NSNumber(value: fps))
@@ -52,7 +53,10 @@ public final class HardwareVideoEncoder {
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: bitrateBps))
         let dataLimits = [bitrateBps / 8, 1] as CFArray
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits, value: dataLimits)
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: NSNumber(value: fps)) // Keyframe every 1s
+        // Set Keyframe interval to 3600 (30 seconds) to avoid periodic 350KB I-frame bandwidth spikes and stutters
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: NSNumber(value: fps * 30))
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MoreFramesBeforeStart, value: kCFBooleanFalse)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MoreFramesAfterEnd, value: kCFBooleanFalse)
         
         VTCompressionSessionPrepareToEncodeFrames(session)
         print("[Encoder] Hardware HEVC VideoToolbox session active (\(width)x\(height) @ \(fps)fps, \(bitrateMbps) Mbps)")

@@ -20,7 +20,8 @@ class ConnectionManager(
     private val onConnected: (mode: String) -> Unit,
     private val onDisconnected: () -> Unit,
     private val onVideoFrame: (nalu: ByteArray, ptsUs: Long, isKeyframe: Boolean) -> Unit,
-    private val onAudioFrame: (pcmData: ByteArray) -> Unit
+    private val onAudioFrame: (pcmData: ByteArray) -> Unit,
+    private val onSpeedUpdated: ((Float) -> Unit)? = null
 ) {
     companion object {
         private const val TAG = "ConnectionManager"
@@ -120,7 +121,7 @@ class ConnectionManager(
                 Log.i(TAG, "Connecting to Video Channel $host:${ProtocolConstants.VIDEO_PORT}...")
                 val vSocket = Socket()
                 vSocket.tcpNoDelay = true
-                vSocket.receiveBufferSize = 4 * 1024 * 1024 // 4MB buffer
+                vSocket.receiveBufferSize = 128 * 1024 // 128KB buffer (zero bufferbloat, instantaneous wire delivery)
                 vSocket.soTimeout = 0
                 vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 3500)
                 videoSocket = vSocket
@@ -213,8 +214,12 @@ class ConnectionManager(
 
     private fun readVideoStream(socket: Socket) {
         try {
-            val dis = DataInputStream(socket.getInputStream())
+            val bis = BufferedInputStream(socket.getInputStream(), 128 * 1024)
+            val dis = DataInputStream(bis)
             val headerBuffer = ByteArray(20)
+
+            var bytesWindow = 0L
+            var lastSpeedCheck = System.currentTimeMillis()
 
             while (_isConnected.get() && !socket.isClosed) {
                 dis.readFully(headerBuffer)
@@ -228,6 +233,17 @@ class ConnectionManager(
 
                 val payloadData = ByteArray(payloadLength)
                 dis.readFully(payloadData)
+
+                // Track Real-time Data Read Speed (Mbps)
+                bytesWindow += (20 + payloadLength)
+                val now = System.currentTimeMillis()
+                val elapsed = now - lastSpeedCheck
+                if (elapsed >= 500) {
+                    val mbps = (bytesWindow * 8f) / (elapsed * 1000f)
+                    bytesWindow = 0L
+                    lastSpeedCheck = now
+                    onSpeedUpdated?.invoke(mbps)
+                }
 
                 if (frameType != ProtocolConstants.FRAME_TYPE_AUDIO) {
                     val isKeyframe = (frameType == ProtocolConstants.FRAME_TYPE_KEYFRAME)
