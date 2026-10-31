@@ -15,15 +15,20 @@ public final class HardwareVideoEncoder {
     
     public init() {}
     
-    public func setupSession(width: Int, height: Int, fps: Int = 120, bitrateMbps: Int = 80) -> Bool {
+    public func setupSession(width: Int, height: Int, fps: Int = 120, bitrateMbps: Int = 60) -> Bool {
         teardown()
+        
+        // Low-latency encoder specification for Apple Silicon M-series hardware
+        let encoderSpecification: [CFString: Any] = [
+            kVTVideoEncoderSpecification_EnableLowLatencyRateControl: true
+        ]
         
         let status = VTCompressionSessionCreate(
             allocator: kCFAllocatorDefault,
             width: Int32(width),
             height: Int32(height),
             codecType: kCMVideoCodecType_HEVC,
-            encoderSpecification: nil,
+            encoderSpecification: encoderSpecification as CFDictionary,
             imageBufferAttributes: nil,
             compressedDataAllocator: nil,
             outputCallback: compressionCallback,
@@ -36,11 +41,12 @@ public final class HardwareVideoEncoder {
             return false
         }
         
-        // Optimize for ultra-low latency interactive streaming (Zero Latency Profile)
+        // Optimize for ultra-low latency interactive streaming (Sub-frame latency)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_HEVC_Main_AutoLevel)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxFrameDelayCount, value: NSNumber(value: 0)) // 0 Frame latency!
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality, value: kCFBooleanTrue)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: NSNumber(value: fps))
         let bitrateBps = bitrateMbps * 1_000_000
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: bitrateBps))

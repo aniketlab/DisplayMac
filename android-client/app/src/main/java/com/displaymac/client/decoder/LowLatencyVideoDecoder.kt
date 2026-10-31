@@ -65,7 +65,8 @@ class LowLatencyVideoDecoder(
                 inputBuffer?.put(naluData)
 
                 val flags = if (isKeyframe) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                currentCodec.queueInputBuffer(inputIndex, 0, naluData.size, presentationTimeUs, flags)
+                // Pass PTS 0 to disable Surface timestamp pacing so frames display instantly with zero delay
+                currentCodec.queueInputBuffer(inputIndex, 0, naluData.size, 0, flags)
             }
 
             // Drain output buffers directly to Surface immediately

@@ -61,8 +61,8 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let targetFps = Int(hello.maxRefreshRate)
         
         let isUsb = server.isClientLoopback
-        let targetBitrateMbps = isUsb ? 85 : 40
-        print("[Coordinator] 🔗 Connection Link: \(isUsb ? "⚡ USB-C Direct Cable (5 Gbps | 85 Mbps)" : "📶 Wi-Fi Wireless (40 Mbps)")")
+        let targetBitrateMbps = isUsb ? 60 : 35
+        print("[Coordinator] 🔗 Connection Link: \(isUsb ? "⚡ USB-C Direct Cable (60 Mbps Ultra-Low Latency)" : "📶 Wi-Fi Wireless (35 Mbps)")")
         
         // Spawn virtual display matching tablet exact resolution
         _ = displayManager.setupVirtualDisplay(width: targetWidth, height: targetHeight, refreshRate: targetFps)
