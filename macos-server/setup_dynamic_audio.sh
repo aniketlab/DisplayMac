@@ -80,15 +80,17 @@ chmod 666 "$NAME_FILE"
 echo "[3/4] Compiling native Apple Silicon driver bundle (Pure clang, zero Xcode needed)..."
 mkdir -p "$BUNDLE_DIR/Contents/MacOS"
 
+SDK_PATH=$(xcrun --show-sdk-path)
+
 # Compile directly using Apple Silicon clang with CoreAudio frameworks
 clang -bundle \
     -arch arm64 \
-    -isysroot $(xcrun --show-sdk-path) \
+    -isysroot "$SDK_PATH" \
     -O3 \
     -I "$SRC_DIR" \
     -DkNumber_Of_Channels=2 \
     -DkDriver_Name=\"DisplayMacAudio\" \
-    -DkDevice_Name=\"Samsung Galaxy Tab S10 Ultra (DisplayMac)\" \
+    -DkDevice_Name=\"DisplayMacAudio\" \
     -DkPlugIn_BundleID=\"com.displaymac.audio\" \
     -framework CoreAudio \
     -framework CoreFoundation \
