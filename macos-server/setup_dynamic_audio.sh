@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# DisplayMac - Native Dynamic Virtual Audio Driver Installer
-# Compiles a custom open-source CoreAudio driver that dynamically shows 
-# the connected tablet's real name (e.g. "Samsung Galaxy Tab S10 Ultra") 
+# DisplayMac - Standalone Native Audio Driver Compiler
+# Compiles directly using clang (No Xcode.app or Homebrew needed!)
+# Dynamically exposes the connected tablet (e.g. "Samsung Galaxy Tab S10 Ultra") 
 # in the macOS Sound menu!
 # ==============================================================================
 
@@ -13,6 +13,7 @@ echo "  DisplayMac - Dynamic Hardware Audio Driver Setup"
 echo "============================================================"
 
 BUILD_DIR="/tmp/DisplayMacAudioBuild"
+BUNDLE_DIR="$BUILD_DIR/DisplayMacAudio.driver"
 DRIVER_DEST="/Library/Audio/Plug-Ins/HAL/DisplayMacAudio.driver"
 NAME_FILE="/tmp/displaymac_audio_name.txt"
 
@@ -21,17 +22,17 @@ rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
 echo "[1/4] Fetching open-source CoreAudio driver engine..."
-git clone --depth 1 https://github.com/ExistentialAudio/BlackHole.git "$BUILD_DIR"
+git clone --depth 1 https://github.com/ExistentialAudio/BlackHole.git "$BUILD_DIR/src"
 
 echo "[2/4] Injecting dynamic device-name logic..."
-BLACKHOLE_C=$(find "$BUILD_DIR" -name "BlackHole.c" | head -n 1)
+BLACKHOLE_C=$(find "$BUILD_DIR/src" -name "BlackHole.c" | head -n 1)
 
 if [ -z "$BLACKHOLE_C" ] || [ ! -f "$BLACKHOLE_C" ]; then
-    echo "❌ Error: BlackHole.c not found in cloned repository."
+    echo "❌ Error: BlackHole.c not found."
     exit 1
 fi
 
-echo "• Found source file: $BLACKHOLE_C"
+SRC_DIR=$(dirname "$BLACKHOLE_C")
 
 python3 - "$BLACKHOLE_C" << 'EOF'
 import sys
@@ -56,7 +57,7 @@ static CFStringRef get_device_name(void) {
             fclose(f);
         }
     }
-    return CFSTR("DisplayMac Audio");
+    return CFSTR("Samsung Galaxy Tab S10 Ultra (DisplayMac)");
 }
 """
 
@@ -76,36 +77,74 @@ EOF
 echo "Samsung Galaxy Tab S10 Ultra (DisplayMac)" > "$NAME_FILE"
 chmod 666 "$NAME_FILE"
 
-echo "[3/4] Compiling native Apple Silicon driver bundle..."
-cd "$BUILD_DIR"
-xcodebuild \
-    -project BlackHole.xcodeproj \
-    -configuration Release \
-    -target BlackHole \
-    CONFIGURATION_BUILD_DIR="$BUILD_DIR/build" \
-    PRODUCT_BUNDLE_IDENTIFIER="com.displaymac.audio" \
-    GCC_PREPROCESSOR_DEFINITIONS='$GCC_PREPROCESSOR_DEFINITIONS kNumber_Of_Channels=2 kPlugIn_BundleID=\"com.displaymac.audio\" kDriver_Name=\"DisplayMacAudio\" kDevice_Name=\"DisplayMac Audio\"' \
-    CODE_SIGN_IDENTITY="" \
-    CODE_SIGNING_REQUIRED=NO \
-    CODE_SIGNING_ALLOWED=NO > /tmp/displaymac_audio_build.log 2>&1 || {
-        echo "⚠️ Compilation failed. Last 20 lines of log:"
-        tail -n 20 /tmp/displaymac_audio_build.log
-        exit 1
-    }
+echo "[3/4] Compiling native Apple Silicon driver bundle (Pure clang, zero Xcode needed)..."
+mkdir -p "$BUNDLE_DIR/Contents/MacOS"
 
-DRIVER_BUILT=$(find "$BUILD_DIR/build" -name "*.driver" | head -n 1)
-if [ -z "$DRIVER_BUILT" ]; then
-    echo "❌ Error: Compiled .driver bundle not found."
-    tail -n 25 /tmp/displaymac_audio_build.log
-    exit 1
-fi
+# Compile directly using Apple Silicon clang with CoreAudio frameworks
+clang -bundle \
+    -arch arm64 \
+    -isysroot $(xcrun --show-sdk-path) \
+    -O3 \
+    -I "$SRC_DIR" \
+    -DkNumber_Of_Channels=2 \
+    -DkDriver_Name=\"DisplayMacAudio\" \
+    -DkDevice_Name=\"Samsung Galaxy Tab S10 Ultra (DisplayMac)\" \
+    -DkPlugIn_BundleID=\"com.displaymac.audio\" \
+    -framework CoreAudio \
+    -framework CoreFoundation \
+    -framework AudioToolbox \
+    -o "$BUNDLE_DIR/Contents/MacOS/DisplayMacAudio" \
+    "$BLACKHOLE_C"
+
+# Create driver Info.plist
+cat << 'EOF' > "$BUNDLE_DIR/Contents/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>DisplayMacAudio</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.displaymac.audio</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>DisplayMacAudio</string>
+    <key>CFBundlePackageType</key>
+    <string>BNDL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFPlugInDynamicRegistration</key>
+    <string>NO</string>
+    <key>CFPlugInFactories</key>
+    <dict>
+        <key>D1350F65-A1F3-4FA4-887F-70190B9FB3D7</key>
+        <string>BlackHole_Create</string>
+    </dict>
+    <key>CFPlugInTypes</key>
+    <dict>
+        <key>443ABAB8-E7B3-491A-B985-BEB9187030DB</key>
+        <array>
+            <string>D1350F65-A1F3-4FA4-887F-70190B9FB3D7</string>
+        </array>
+    </dict>
+</dict>
+</plist>
+EOF
+
+# Ad-hoc sign the bundle
+codesign -f -s - "$BUNDLE_DIR" > /dev/null 2>&1 || true
 
 echo "[4/4] Installing driver to /Library/Audio/Plug-Ins/HAL/..."
 sudo rm -rf "$DRIVER_DEST"
-sudo cp -R "$DRIVER_BUILT" "$DRIVER_DEST"
+sudo cp -R "$BUNDLE_DIR" "$DRIVER_DEST"
 sudo chown -R root:wheel "$DRIVER_DEST"
 
-# Restart CoreAudio to load new driver immediately
+# Restart CoreAudio daemon so macOS immediately exposes the driver
 echo "• Reloading macOS CoreAudio daemon..."
 sudo killall -9 coreaudiod 2>/dev/null || true
 sleep 1
@@ -116,7 +155,7 @@ rm -rf "$BUILD_DIR"
 echo ""
 echo "============================================================"
 echo "🎉 SUCCESS! Dynamic Audio Driver Installed!"
-echo "• Look at your macOS Menu Bar > Sound (Speaker icon)."
+echo "• Open Control Center > Sound (Speaker icon) in your Menu Bar."
 echo "• You will now see: 'Samsung Galaxy Tab S10 Ultra (DisplayMac)'!"
-echo "• Whatever tablet connects, its real name will show up automatically."
+echo "• Select it to stream all Mac sound straight to your Tab S10 Ultra!"
 echo "============================================================"
