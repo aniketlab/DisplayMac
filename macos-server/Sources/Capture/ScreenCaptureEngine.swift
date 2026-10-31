@@ -22,12 +22,24 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
             _ = CGRequestScreenCaptureAccess()
         }
         
-        let shareableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        guard let targetDisplay = shareableContent.displays.first(where: { $0.displayID == displayID }) ?? shareableContent.displays.first else {
+        // Poll up to 1.5s for the newly spawned virtual display to register in WindowServer
+        var targetDisplay: SCDisplay? = nil
+        for attempt in 0..<15 {
+            let shareableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            if let found = shareableContent.displays.first(where: { $0.displayID == displayID }) {
+                targetDisplay = found
+                print("[ScreenCapture] Target Virtual Display \(displayID) successfully resolved on attempt \(attempt + 1)")
+                break
+            }
+            try await Task.sleep(nanoseconds: 100_000_000) // 100ms sleep
+        }
+        
+        guard let displayToCapture = targetDisplay ?? (try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)).displays.first else {
             throw NSError(domain: "DisplayMac", code: -1, userInfo: [NSLocalizedDescriptionKey: "Target display not found"])
         }
         
-        let filter = SCContentFilter(display: targetDisplay, excludingWindows: [])
+        print("[ScreenCapture] Capturing display: ID \(displayToCapture.displayID) (\(displayToCapture.width)x\(displayToCapture.height))")
+        let filter = SCContentFilter(display: displayToCapture, excludingWindows: [])
         
         let configuration = SCStreamConfiguration()
         configuration.width = width
@@ -36,7 +48,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange // NV12
         configuration.showsCursor = true
         configuration.capturesAudio = false
-        configuration.scalesToFit = true
+        configuration.scalesToFit = false // Pixel-perfect 1:1 mapping, no blur
         
         let scStream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try scStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQueue)
