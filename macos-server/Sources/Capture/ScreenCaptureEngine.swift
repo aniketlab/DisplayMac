@@ -25,9 +25,9 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
             _ = CGRequestScreenCaptureAccess()
         }
         
-        // Poll up to 1.5s for the newly spawned virtual display to register in WindowServer
+        // Poll up to 3.0s for the newly spawned virtual display to register in WindowServer
         var targetDisplay: SCDisplay? = nil
-        for attempt in 0..<15 {
+        for attempt in 0..<30 {
             let shareableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             if let found = shareableContent.displays.first(where: { $0.displayID == displayID }) {
                 targetDisplay = found
@@ -37,13 +37,9 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
             try await Task.sleep(nanoseconds: 100_000_000) // 100ms sleep
         }
         
-        var chosenDisplay = targetDisplay
-        if chosenDisplay == nil {
-            let fallbackContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            chosenDisplay = fallbackContent.displays.first
-        }
-        guard let displayToCapture = chosenDisplay else {
-            throw NSError(domain: "DisplayMac", code: -1, userInfo: [NSLocalizedDescriptionKey: "Target display not found"])
+        guard let displayToCapture = targetDisplay else {
+            print("[ScreenCapture] ❌ Error: Virtual display \(displayID) not found in WindowServer. Refusing to stream main BenQ monitor.")
+            throw NSError(domain: "DisplayMac", code: -1, userInfo: [NSLocalizedDescriptionKey: "Target virtual display \(displayID) not found"])
         }
         
         print("[ScreenCapture] Capturing display: ID \(displayToCapture.displayID) (\(displayToCapture.width)x\(displayToCapture.height))")

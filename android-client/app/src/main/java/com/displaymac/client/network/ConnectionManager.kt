@@ -185,6 +185,16 @@ class ConnectionManager(
         }
     }
 
+    /**
+     * Request an immediate IDR Keyframe from the Mac server (e.g. when app resumes from background).
+     */
+    fun requestKeyframe() {
+        if (!_isConnected.get()) return
+        Log.i(TAG, "Requesting immediate IDR keyframe from Mac...")
+        val packet = ProtocolConstants.buildControlMessage(ProtocolConstants.MSG_REQUEST_KEYFRAME, ByteArray(0))
+        sendControlPacket(packet)
+    }
+
     private fun readControlStream(socket: Socket) {
         try {
             val dis = DataInputStream(socket.getInputStream())

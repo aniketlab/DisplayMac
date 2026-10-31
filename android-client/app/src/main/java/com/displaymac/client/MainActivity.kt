@@ -82,6 +82,9 @@ class MainActivity : AppCompatActivity() {
         // Wire Action Buttons
         setupActionButtons()
 
+        // Prepare Connection Manager & Input Handlers
+        initConnectionManager()
+
         // Prepare SurfaceView
         setupSurface()
     }
@@ -225,21 +228,30 @@ class MainActivity : AppCompatActivity() {
         videoSurface.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 surfaceHolderRef = holder
-                initPipeline(holder)
+                if (connectionManager?.isConnected == true) {
+                    // Resumed from background/minimize while connected!
+                    android.util.Log.i("MainActivity", "Resuming video pipeline after minimize/resume...")
+                    ensureDecoderActive(holder)
+                    connectionManager?.requestKeyframe()
+                    videoSurface.visibility = View.VISIBLE
+                    hudOverlay.visibility = View.VISIBLE
+                    dashboardLayout.visibility = View.GONE
+                }
             }
 
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 surfaceHolderRef = null
+                // Stop decoder since surface is destroyed, but DO NOT disconnect network!
+                // TCP socket & audio playback remain alive in background.
                 videoDecoder?.stopDecoder()
                 videoDecoder = null
-                connectionManager?.disconnect()
             }
         })
     }
 
-    private fun initPipeline(holder: SurfaceHolder) {
+    private fun initConnectionManager() {
         // Initialize Connection Manager
         val connManager = ConnectionManager(
             context = this,
@@ -263,7 +275,7 @@ class MainActivity : AppCompatActivity() {
 
                 statusText.text = "Connected ($mode)"
                 statusText.setTextColor(getColor(R.color.status_green))
-                fpsText.text = "120 Hz"
+                fpsText.text = "120 FPS"
             },
             onDisconnected = {
                 // Stop audio playback

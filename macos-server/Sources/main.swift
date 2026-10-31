@@ -11,6 +11,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     private var isStreaming = false
     private var encodedFrameCount: Int = 0
     private var lastStatsTime = Date()
+    private var displayReleaseWorkItem: DispatchWorkItem?
     
     init() {
         captureEngine.delegate = self
@@ -64,6 +65,10 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     func networkServer(_ server: NetworkServer, didConnectClient hello: ClientHello) {
         print("\n[Coordinator] ⚡ Tablet Connected! Handshake: \(hello.displayWidth)x\(hello.displayHeight) @ \(hello.maxRefreshRate)Hz")
         
+        // Cancel any pending virtual display teardown from a quick reconnect/cable replug
+        displayReleaseWorkItem?.cancel()
+        displayReleaseWorkItem = nil
+        
         let targetWidth = Int(hello.displayWidth)
         let targetHeight = Int(hello.displayHeight)
         let targetFps = Int(hello.maxRefreshRate)
@@ -72,18 +77,18 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let targetBitrateMbps = isUsb ? 60 : 35
         print("[Coordinator] 🔗 Connection Link: \(isUsb ? "⚡ USB-C Direct Cable (60 Mbps Ultra-Low Latency)" : "📶 Wi-Fi Wireless (35 Mbps)")")
         
-        // Spawn virtual display matching tablet exact resolution with HiDPI Retina modes
+        // Spawn or reuse virtual display matching tablet exact resolution with HiDPI Retina modes
         _ = displayManager.setupVirtualDisplay(width: targetWidth, height: targetHeight, refreshRate: targetFps)
         
-        if let displayID = displayManager.activeDisplayID {
-            InputInjector.shared.updateActiveDisplay(displayID: displayID)
-            let bounds = CGDisplayBounds(displayID)
-            InputInjector.shared.updateScreenBounds(originX: bounds.origin.x, originY: bounds.origin.y, width: bounds.width, height: bounds.height)
-            print("[Coordinator] Touch/Stylus bounds mapped to logical: (\(Int(bounds.origin.x)), \(Int(bounds.origin.y)), \(Int(bounds.width))x\(Int(bounds.height))) (HiDPI Retina)")
-        } else {
-            InputInjector.shared.updateActiveDisplay(displayID: nil)
-            InputInjector.shared.updateScreenBounds(originX: 0, originY: 0, width: CGFloat(targetWidth), height: CGFloat(targetHeight))
+        guard let displayID = displayManager.activeDisplayID, displayID != CGMainDisplayID() else {
+            print("[Coordinator] ❌ Could not acquire dedicated virtual display. Aborting capture to protect primary BenQ monitor.")
+            return
         }
+        
+        InputInjector.shared.updateActiveDisplay(displayID: displayID)
+        let bounds = CGDisplayBounds(displayID)
+        InputInjector.shared.updateScreenBounds(originX: bounds.origin.x, originY: bounds.origin.y, width: bounds.width, height: bounds.height)
+        print("[Coordinator] Touch/Stylus bounds mapped to logical: (\(Int(bounds.origin.x)), \(Int(bounds.origin.y)), \(Int(bounds.width))x\(Int(bounds.height))) (HiDPI Retina)")
         
         // Send ServerConfig acknowledgement
         let config = ServerConfig(
@@ -117,11 +122,13 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         
         // Launch ScreenCaptureKit pipeline
         Task {
-            guard let displayID = displayManager.activeDisplayID else { return }
+            if captureEngine.isRunning {
+                await captureEngine.stopCapture()
+            }
             do {
                 try await captureEngine.startCapture(displayID: displayID, width: targetWidth, height: targetHeight, targetFps: targetFps)
                 self.isStreaming = true
-                InputInjector.shared.updateActiveDisplay(displayID: displayID)
+                self.videoEncoder.requestImmediateKeyframe()
                 print("[Coordinator] 🚀 Active streaming pipeline engaged at \(targetWidth)x\(targetHeight) @ \(targetFps) FPS!")
             } catch {
                 print("[Coordinator] Error starting screen capture: \(error.localizedDescription)")
@@ -130,7 +137,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     }
     
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
-        print("\n[Coordinator] 🔌 Client disconnected. Releasing virtual display...")
+        print("\n[Coordinator] 🔌 Client disconnected. Pausing capture...")
         AudioManager.shared.stopCapturing()
         AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
         AudioManager.shared.restorePreviousOutputDevice()
@@ -139,9 +146,19 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         Task {
             await captureEngine.stopCapture()
         }
-        displayManager.releaseVirtualDisplay()
         isStreaming = false
-        print("[Coordinator] ✅ Virtual display removed. BenQ monitor is now primary and clean.")
+        
+        // Smart Grace Period (4 seconds): Keep virtual display alive briefly
+        // so quick reconnects or cable adjustments don't scramble open windows back to BenQ monitor!
+        displayReleaseWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self, !self.isStreaming else { return }
+            print("[Coordinator] ⏳ Grace period expired. Releasing virtual display...")
+            self.displayManager.releaseVirtualDisplay()
+            print("[Coordinator] ✅ Virtual display removed cleanly. BenQ monitor is primary.")
+        }
+        self.displayReleaseWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0, execute: workItem)
     }
     
     func networkServerDidRequestKeyframe(_ server: NetworkServer) {

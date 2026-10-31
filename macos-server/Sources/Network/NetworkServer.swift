@@ -138,7 +138,10 @@ public final class NetworkServer {
     // MARK: - Control Connection Handling
     private func handleNewControlConnection(_ connection: NWConnection) {
         print("[NetworkServer] New client connected on Control Channel: \(connection.endpoint)")
-        self.controlConnection?.cancel()
+        if let old = self.controlConnection {
+            old.stateUpdateHandler = nil
+            old.cancel()
+        }
         self.controlConnection = connection
         
         connection.stateUpdateHandler = { [weak self] state in
@@ -146,10 +149,12 @@ public final class NetworkServer {
             switch state {
             case .failed(let error):
                 print("[NetworkServer] Control connection failed: \(error)")
+                guard self.controlConnection === connection else { return }
                 self.controlConnection = nil
                 self.delegate?.networkServerDidDisconnectClient(self)
             case .cancelled:
                 print("[NetworkServer] Control connection closed.")
+                guard self.controlConnection === connection else { return }
                 self.controlConnection = nil
                 self.delegate?.networkServerDidDisconnectClient(self)
             default:
@@ -260,7 +265,10 @@ public final class NetworkServer {
     // MARK: - Video Connection Handling
     private func handleNewVideoConnection(_ connection: NWConnection) {
         print("[NetworkServer] New client connected on Video Channel: \(connection.endpoint)")
-        self.videoConnection?.cancel()
+        if let old = self.videoConnection {
+            old.stateUpdateHandler = nil
+            old.cancel()
+        }
         self.videoConnection = connection
         
         connection.stateUpdateHandler = { [weak self] state in
@@ -268,9 +276,11 @@ public final class NetworkServer {
             switch state {
             case .failed(let error):
                 print("[NetworkServer] Video connection failed: \(error)")
+                guard self.videoConnection === connection else { return }
                 self.videoConnection = nil
             case .cancelled:
                 print("[NetworkServer] Video connection closed.")
+                guard self.videoConnection === connection else { return }
                 self.videoConnection = nil
             default:
                 break
@@ -332,7 +342,10 @@ public final class NetworkServer {
     // MARK: - Audio Connection Handling (Dedicated Port 7102)
     private func handleNewAudioConnection(_ connection: NWConnection) {
         print("[NetworkServer] 🎵 New client connected on Audio Channel: \(connection.endpoint)")
-        self.audioConnection?.cancel()
+        if let old = self.audioConnection {
+            old.stateUpdateHandler = nil
+            old.cancel()
+        }
         self.audioConnection = connection
         
         connection.stateUpdateHandler = { [weak self] state in
@@ -340,9 +353,11 @@ public final class NetworkServer {
             switch state {
             case .failed(let error):
                 print("[NetworkServer] Audio connection failed: \(error)")
+                guard self.audioConnection === connection else { return }
                 self.audioConnection = nil
             case .cancelled:
                 print("[NetworkServer] Audio connection closed.")
+                guard self.audioConnection === connection else { return }
                 self.audioConnection = nil
             default:
                 break

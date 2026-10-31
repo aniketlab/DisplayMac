@@ -21,6 +21,14 @@ public final class VirtualDisplayManager {
         self.currentHeight = height
         self.currentRefreshRate = refreshRate
         
+        // 1. Check if an active, dedicated virtual display is ALREADY allocated and online
+        if let existingID = activeDisplayID, virtualDisplayInstance != nil, existingID != CGMainDisplayID() {
+            if CGDisplayIsActive(existingID) != 0 {
+                print("[VirtualDisplay] ♻️ Reusing existing active virtual display ID: \(existingID)")
+                return true
+            }
+        }
+        
         print("[VirtualDisplay] Initializing Virtual Display: \(width)x\(height) @ \(refreshRate)Hz...")
         
         // Ensure CoreDisplay framework is dynamically loaded in process memory
@@ -99,12 +107,10 @@ public final class VirtualDisplayManager {
             }
         }
         
-        // Fallback: Bind to main display
-        let mainID = CGMainDisplayID()
-        self.activeDisplayID = mainID
-        let bounds = CGDisplayBounds(mainID)
-        print("[VirtualDisplay] Note: Using active system display ID: \(mainID) (\(Int(bounds.width))x\(Int(bounds.height)))")
-        return true
+        // DO NOT FALLBACK TO MAIN DISPLAY! Prevents mirroring of physical BenQ monitor.
+        print("[VirtualDisplay] ❌ Error: Failed to spawn CGVirtualDisplay. Main display fallback strictly disabled.")
+        self.activeDisplayID = nil
+        return false
     }
     
     public func releaseVirtualDisplay() {

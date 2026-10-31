@@ -80,6 +80,15 @@ public final class USBLinkManager {
             }
             
             if hasDevice {
+                if !lastForwardSuccessful {
+                    // Flush any stale or dead reverse forwards before binding
+                    let pClean = Process()
+                    pClean.executableURL = URL(fileURLWithPath: adbPath)
+                    pClean.arguments = ["reverse", "--remove-all"]
+                    try? pClean.run()
+                    pClean.waitUntilExit()
+                }
+
                 // Device connected! Forward ports: 7100 (Control), 7101 (Video), 7102 (Audio)
                 let p1 = Process()
                 p1.executableURL = URL(fileURLWithPath: adbPath)
