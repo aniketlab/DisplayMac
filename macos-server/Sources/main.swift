@@ -94,6 +94,24 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Setup Hardware HEVC encoder with medium-optimized bitrate
         _ = videoEncoder.setupSession(width: targetWidth, height: targetHeight, fps: targetFps, bitrateMbps: targetBitrateMbps)
         
+        // Smart Audio Management (Multiple Display Selection vs Single Headless Auto-Select)
+        let physicalDisplays = displayManager.getPhysicalDisplayIDs()
+        if physicalDisplays.isEmpty {
+            // Single Display / Headless mode: Auto-switch sound output to tablet
+            if let tabletAudio = AudioManager.shared.findTabletAudioDevice() {
+                AudioManager.shared.saveCurrentOutputDevice()
+                if AudioManager.shared.setDefaultOutputDevice(tabletAudio.id) {
+                    print("[Audio] 🔈 Single display active: Auto-selected '\(tabletAudio.name)' as default audio speaker!")
+                }
+            } else {
+                print("[Audio] 🔈 Single display active (Headless). Connect tablet via Bluetooth/Sound menu for audio.")
+            }
+        } else {
+            // Multiple Displays mode (BenQ + Tablet): Allow user to select in Sound menu
+            print("[Audio] 🔈 Multiple displays detected (BenQ monitor active):")
+            print("        • You can select your preferred audio output anytime from macOS Control Center > Sound menu.")
+        }
+        
         // Launch ScreenCaptureKit pipeline
         Task {
             guard let displayID = displayManager.activeDisplayID else { return }
@@ -110,6 +128,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
         print("\n[Coordinator] 🔌 Client disconnected. Releasing virtual display...")
+        AudioManager.shared.restorePreviousOutputDevice()
         InputInjector.shared.updateActiveDisplay(displayID: nil)
         Task {
             await captureEngine.stopCapture()

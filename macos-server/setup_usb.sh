@@ -38,9 +38,10 @@ if [ "$DEVICES" -eq 0 ]; then
 fi
 
 echo "✅ Tablet detected over USB-C!"
-echo "⚡ Forwarding ports (7100, 7101) over 5 Gbps wire..."
+echo "⚡ Forwarding ports (7100, 7101, 7102) over 5 Gbps wire..."
 $ADB_BIN reverse tcp:7100 tcp:7100
 $ADB_BIN reverse tcp:7101 tcp:7101
+$ADB_BIN reverse tcp:7102 tcp:7102
 
 echo ""
 echo "============================================================"

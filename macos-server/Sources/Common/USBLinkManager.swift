@@ -80,7 +80,7 @@ public final class USBLinkManager {
             }
             
             if hasDevice {
-                // Device connected! Forward both ports: 7100 and 7101
+                // Device connected! Forward ports: 7100 (Control), 7101 (Video), 7102 (Audio)
                 let p1 = Process()
                 p1.executableURL = URL(fileURLWithPath: adbPath)
                 p1.arguments = ["reverse", "tcp:7100", "tcp:7100"]
@@ -93,8 +93,14 @@ public final class USBLinkManager {
                 try? p2.run()
                 p2.waitUntilExit()
                 
+                let p3 = Process()
+                p3.executableURL = URL(fileURLWithPath: adbPath)
+                p3.arguments = ["reverse", "tcp:7102", "tcp:7102"]
+                try? p3.run()
+                p3.waitUntilExit()
+                
                 if !lastForwardSuccessful {
-                    print("[USBLink] ✅ USB-C Cable link established & ports (7100, 7101) forwarded!")
+                    print("[USBLink] ✅ USB-C Cable link established & ports (7100, 7101, 7102) forwarded!")
                     lastForwardSuccessful = true
                 }
             } else {

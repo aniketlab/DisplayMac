@@ -4,6 +4,9 @@ import CoreGraphics
 public final class InputInjector {
     public static let shared = InputInjector()
     
+    // macOS CoreGraphics Tablet Point Subtype (kCGEventMouseSubtypeTabletPoint = 1)
+    private let tabletPointSubtype: Int64 = 1
+    
     private var activeDisplayID: CGDirectDisplayID?
     private var originX: CGFloat = 0
     private var originY: CGFloat = 0
@@ -71,7 +74,7 @@ public final class InputInjector {
                 if isMouseDown {
                     applyStylusAttributes(event, pressure: packet.pressure, tilt: packet.tilt, isSecondary: isSecondaryButton)
                 } else {
-                    event.setIntegerValueField(.mouseEventSubtype, value: Int64(kCGEventMouseSubtypeTabletPoint.rawValue))
+                    event.setIntegerValueField(.mouseEventSubtype, value: tabletPointSubtype)
                 }
                 event.post(tap: .cghidEventTap)
             }
@@ -88,7 +91,7 @@ public final class InputInjector {
         case StylusAction.hover:
             // S-Pen hover: Smoothly tracks cursor right under the pen tip without hardware warping
             if let event = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left) {
-                event.setIntegerValueField(.mouseEventSubtype, value: Int64(kCGEventMouseSubtypeTabletPoint.rawValue))
+                event.setIntegerValueField(.mouseEventSubtype, value: tabletPointSubtype)
                 event.post(tap: .cghidEventTap)
             }
             
@@ -108,7 +111,7 @@ public final class InputInjector {
         event.setDoubleValueField(.tabletEventTiltX, value: t)
         
         // Native macOS Tablet Point Subtype
-        event.setIntegerValueField(.mouseEventSubtype, value: Int64(kCGEventMouseSubtypeTabletPoint.rawValue))
+        event.setIntegerValueField(.mouseEventSubtype, value: tabletPointSubtype)
         event.setIntegerValueField(.tabletEventDeviceID, value: 1)
         event.setIntegerValueField(.tabletEventPointButtons, value: isSecondary ? 2 : 1)
     }
