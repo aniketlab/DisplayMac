@@ -21,6 +21,7 @@ public enum VideoCodec: UInt8 {
 public enum FrameType: UInt8 {
     case keyframe = 0x01
     case pFrame   = 0x02
+    case audio    = 0x03
 }
 
 public struct ProtocolConstants {

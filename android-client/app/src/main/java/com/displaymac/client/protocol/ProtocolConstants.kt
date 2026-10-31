@@ -18,9 +18,10 @@ object ProtocolConstants {
     const val MSG_REQUEST_KEYFRAME: Byte = 0x05
     const val MSG_STYLUS_EVENT: Byte = 0x11
 
-    // Video Frame Types
+    // Stream Frame Types
     const val FRAME_TYPE_KEYFRAME: Byte = 0x01
     const val FRAME_TYPE_P_FRAME: Byte = 0x02
+    const val FRAME_TYPE_AUDIO: Byte = 0x03
 
     fun buildClientHello(width: Int, height: Int, refreshRate: Int, dpi: Int): ByteArray {
         val payload = ByteBuffer.allocate(18).order(ByteOrder.BIG_ENDIAN)

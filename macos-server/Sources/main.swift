@@ -1,5 +1,6 @@
 import Foundation
 import CoreMedia
+import ApplicationServices
 
 final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEncoderDelegate, NetworkServerDelegate {
     private let displayManager = VirtualDisplayManager.shared
@@ -39,6 +40,9 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Start automatic USB-C cable bridge watchdog (auto-forwards 7100, 7101 whenever tablet is plugged)
         USBLinkManager.shared.startAutoBridge()
         
+        // Verify Accessibility permissions for S-Pen and Mouse injection
+        checkAccessibilityPermissions()
+        
         print("""
         [Host] 🟢 Ready & Listening!
         • Mac IP Address(es): \(ipList)
@@ -69,10 +73,10 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         
         if let displayID = displayManager.activeDisplayID {
             let bounds = CGDisplayBounds(displayID)
-            InputInjector.shared.updateScreenBounds(width: bounds.width, height: bounds.height)
-            print("[Coordinator] Touch/Stylus bounds mapped to logical: \(Int(bounds.width))x\(Int(bounds.height)) (HiDPI Retina)")
+            InputInjector.shared.updateScreenBounds(originX: bounds.origin.x, originY: bounds.origin.y, width: bounds.width, height: bounds.height)
+            print("[Coordinator] Touch/Stylus bounds mapped to logical: (\(Int(bounds.origin.x)), \(Int(bounds.origin.y)), \(Int(bounds.width))x\(Int(bounds.height))) (HiDPI Retina)")
         } else {
-            InputInjector.shared.updateScreenBounds(width: CGFloat(targetWidth), height: CGFloat(targetHeight))
+            InputInjector.shared.updateScreenBounds(originX: 0, originY: 0, width: CGFloat(targetWidth), height: CGFloat(targetHeight))
         }
         
         // Send ServerConfig acknowledgement
@@ -118,6 +122,10 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     // MARK: - ScreenCaptureEngineDelegate
     func captureEngine(_ engine: ScreenCaptureEngine, didCaptureSampleBuffer sampleBuffer: CMSampleBuffer) {
         videoEncoder.encode(sampleBuffer: sampleBuffer)
+    }
+    
+    func captureEngine(_ engine: ScreenCaptureEngine, didCaptureAudioData data: Data, pts: CMTime) {
+        networkServer.broadcastAudioFrame(pcmData: data, pts: pts)
     }
     
     // MARK: - HardwareVideoEncoderDelegate
@@ -171,6 +179,16 @@ signal(SIGINT) { _ in
 signal(SIGTERM) { _ in
     VirtualDisplayManager.shared.releaseVirtualDisplay()
     exit(0)
+}
+
+func checkAccessibilityPermissions() {
+    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+    let isTrusted = AXIsProcessTrustedWithOptions(options)
+    if !isTrusted {
+        print("⚠️ [Input] Accessibility permission required! macOS prompt has appeared to authorize Terminal/DisplayMacServer in System Settings > Privacy & Security > Accessibility.")
+    } else {
+        print("✅ [Input] Accessibility permission verified (S-Pen & Mouse injection active).")
+    }
 }
 
 // Start Server Loop

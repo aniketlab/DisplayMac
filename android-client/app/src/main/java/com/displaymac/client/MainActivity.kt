@@ -18,6 +18,7 @@ import androidx.appcompat.widget.AppCompatButton
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.displaymac.client.audio.LowLatencyAudioPlayer
 import com.displaymac.client.decoder.LowLatencyVideoDecoder
 import com.displaymac.client.display.DisplayModeManager
 import com.displaymac.client.input.StylusInputHandler
@@ -44,6 +45,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var displayModeManager: DisplayModeManager
     private var videoDecoder: LowLatencyVideoDecoder? = null
+    private var audioPlayer: LowLatencyAudioPlayer? = null
     private var connectionManager: ConnectionManager? = null
     private var pulseAnimator: ObjectAnimator? = null
     private var surfaceHolderRef: SurfaceHolder? = null
@@ -53,6 +55,9 @@ class MainActivity : AppCompatActivity() {
 
         // Keep screen active indefinitely
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        // Initialize low-latency audio renderer
+        audioPlayer = LowLatencyAudioPlayer()
 
         // Inflate view hierarchy
         setContentView(R.layout.activity_main)
@@ -106,9 +111,8 @@ class MainActivity : AppCompatActivity() {
                     // If streaming, back button immediately disconnects and returns to dashboard
                     connectionManager?.disconnect()
                 } else {
-                    // On dashboard, minimize app normally
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
+                    // On dashboard, minimize app smoothly without killing process
+                    moveTaskToBack(true)
                 }
             }
         })
@@ -240,26 +244,34 @@ class MainActivity : AppCompatActivity() {
             onConnected = { mode ->
                 hideLoading()
                 
+                // Start low-latency audio playback to Galaxy Tab AKG quad speakers
+                audioPlayer?.start()
+                videoSurface.visibility = View.VISIBLE
+                
                 // Hide Dashboard and reveal 120Hz Mac desktop stream
                 dashboardLayout.animate()
                     .alpha(0f)
-                    .setDuration(300)
+                    .setDuration(250)
                     .withEndAction { dashboardLayout.visibility = View.GONE }
                     .start()
 
                 hudOverlay.visibility = View.VISIBLE
                 hudOverlay.alpha = 0f
-                hudOverlay.animate().alpha(1f).setDuration(300).start()
+                hudOverlay.animate().alpha(1f).setDuration(250).start()
 
                 statusText.text = "Connected ($mode)"
                 statusText.setTextColor(getColor(R.color.status_green))
                 fpsText.text = "120 Hz"
             },
             onDisconnected = {
+                // Stop audio playback
+                audioPlayer?.stop()
+                
                 // Return to Dashboard cleanly
                 dashboardLayout.bringToFront()
                 dashboardLayout.alpha = 1f
                 dashboardLayout.visibility = View.VISIBLE
+                videoSurface.visibility = View.INVISIBLE
                 hudOverlay.visibility = View.GONE
                 hideLoading()
 
@@ -271,6 +283,9 @@ class MainActivity : AppCompatActivity() {
             },
             onVideoFrame = { nalu, ptsUs, isKeyframe ->
                 videoDecoder?.decodeNalu(nalu, ptsUs, isKeyframe)
+            },
+            onAudioFrame = { pcm ->
+                audioPlayer?.playAudio(pcm)
             }
         )
         this.connectionManager = connManager
@@ -322,6 +337,8 @@ class MainActivity : AppCompatActivity() {
         pulseAnimator?.cancel()
         videoDecoder?.stopDecoder()
         videoDecoder = null
+        audioPlayer?.stop()
+        audioPlayer = null
         connectionManager?.shutdown()
     }
 }

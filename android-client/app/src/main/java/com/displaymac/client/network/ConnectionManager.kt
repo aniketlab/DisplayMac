@@ -18,7 +18,8 @@ class ConnectionManager(
     private val context: Context,
     private val onConnected: (mode: String) -> Unit,
     private val onDisconnected: () -> Unit,
-    private val onVideoFrame: (nalu: ByteArray, ptsUs: Long, isKeyframe: Boolean) -> Unit
+    private val onVideoFrame: (nalu: ByteArray, ptsUs: Long, isKeyframe: Boolean) -> Unit,
+    private val onAudioFrame: (pcmData: ByteArray) -> Unit
 ) {
     companion object {
         private const val TAG = "ConnectionManager"
@@ -205,13 +206,16 @@ class ConnectionManager(
                 val ptsNano = bb.long
                 val payloadLength = bb.int
 
-                val naluData = ByteArray(payloadLength)
-                dis.readFully(naluData)
+                val payloadData = ByteArray(payloadLength)
+                dis.readFully(payloadData)
 
-                val isKeyframe = (frameType == ProtocolConstants.FRAME_TYPE_KEYFRAME)
-                val ptsUs = ptsNano / 1000L
-
-                onVideoFrame(naluData, ptsUs, isKeyframe)
+                if (frameType == ProtocolConstants.FRAME_TYPE_AUDIO) {
+                    onAudioFrame(payloadData)
+                } else {
+                    val isKeyframe = (frameType == ProtocolConstants.FRAME_TYPE_KEYFRAME)
+                    val ptsUs = ptsNano / 1000L
+                    onVideoFrame(payloadData, ptsUs, isKeyframe)
+                }
             }
         } catch (e: Exception) {
             Log.d(TAG, "Video stream terminated: ${e.message}")

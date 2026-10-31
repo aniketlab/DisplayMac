@@ -4,21 +4,29 @@ import CoreGraphics
 public final class InputInjector {
     public static let shared = InputInjector()
     
-    private var screenWidth: CGFloat = 2960
-    private var screenHeight: CGFloat = 1848
+    private var originX: CGFloat = 0
+    private var originY: CGFloat = 0
+    private var screenWidth: CGFloat = 1480
+    private var screenHeight: CGFloat = 924
     private var isMouseDown: Bool = false
     
     private init() {}
     
-    public func updateScreenBounds(width: CGFloat, height: CGFloat) {
+    public func updateScreenBounds(originX: CGFloat, originY: CGFloat, width: CGFloat, height: CGFloat) {
+        self.originX = originX
+        self.originY = originY
         self.screenWidth = width
         self.screenHeight = height
     }
     
     public func handleStylusPacket(_ packet: StylusPacket) {
-        let x = CGFloat(packet.normalizedX) * screenWidth
-        let y = CGFloat(packet.normalizedY) * screenHeight
-        let point = CGPoint(x: x, y: y)
+        // Calculate point in macOS Global Coordinate Space (taking multi-monitor offset into account)
+        let globalX = originX + (CGFloat(packet.normalizedX) * screenWidth)
+        let globalY = originY + (CGFloat(packet.normalizedY) * screenHeight)
+        let point = CGPoint(x: globalX, y: globalY)
+        
+        // Warp visible cursor so user sees mouse immediately follow finger or S-Pen
+        CGWarpMouseCursorPosition(point)
         
         let isSecondaryButton = (packet.buttons & 0x01) != 0
         
