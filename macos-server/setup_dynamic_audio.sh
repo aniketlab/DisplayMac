@@ -24,13 +24,20 @@ echo "[1/4] Fetching open-source CoreAudio driver engine..."
 git clone --depth 1 https://github.com/ExistentialAudio/BlackHole.git "$BUILD_DIR"
 
 echo "[2/4] Injecting dynamic device-name logic..."
-BLACKHOLE_C="$BUILD_DIR/BlackHole/BlackHole/BlackHole.c"
+BLACKHOLE_C=$(find "$BUILD_DIR" -name "BlackHole.c" | head -n 1)
 
-# Replace get_device_name function with dynamic file-reader implementation
-python3 - << 'EOF'
+if [ -z "$BLACKHOLE_C" ] || [ ! -f "$BLACKHOLE_C" ]; then
+    echo "❌ Error: BlackHole.c not found in cloned repository."
+    exit 1
+fi
+
+echo "• Found source file: $BLACKHOLE_C"
+
+python3 - "$BLACKHOLE_C" << 'EOF'
 import sys
+import re
 
-path = "/tmp/DisplayMacAudioBuild/BlackHole/BlackHole/BlackHole.c"
+path = sys.argv[1]
 with open(path, "r") as f:
     code = f.read()
 
@@ -56,14 +63,16 @@ static CFStringRef get_device_name(void) {
 target = "static CFStringRef get_device_name(void) {\n    RETURN_FORMATTED_STRING(kDevice_Name)\n}"
 if target in code:
     code = code.replace(target, replacement)
-    with open(path, "w") as f:
-        f.write(code)
-    print("✅ Successfully patched get_device_name in BlackHole.c")
+    print("✅ Successfully patched get_device_name via exact match")
 else:
-    print("⚠️ Target string not found directly, appending custom name reader")
+    code = re.sub(r'static\s+CFStringRef\s+get_device_name\s*\(\s*void\s*\)\s*\{[^}]*\}', replacement, code)
+    print("✅ Successfully patched get_device_name via regex")
+
+with open(path, "w") as f:
+    f.write(code)
 EOF
 
-# 2. Set initial tablet name
+# Set default tablet name
 echo "Samsung Galaxy Tab S10 Ultra (DisplayMac)" > "$NAME_FILE"
 chmod 666 "$NAME_FILE"
 
@@ -79,14 +88,21 @@ xcodebuild \
     CODE_SIGN_IDENTITY="" \
     CODE_SIGNING_REQUIRED=NO \
     CODE_SIGNING_ALLOWED=NO > /tmp/displaymac_audio_build.log 2>&1 || {
-        echo "⚠️ xcodebuild log:"
+        echo "⚠️ Compilation failed. Last 20 lines of log:"
         tail -n 20 /tmp/displaymac_audio_build.log
         exit 1
     }
 
+DRIVER_BUILT=$(find "$BUILD_DIR/build" -name "*.driver" | head -n 1)
+if [ -z "$DRIVER_BUILT" ]; then
+    echo "❌ Error: Compiled .driver bundle not found."
+    tail -n 25 /tmp/displaymac_audio_build.log
+    exit 1
+fi
+
 echo "[4/4] Installing driver to /Library/Audio/Plug-Ins/HAL/..."
 sudo rm -rf "$DRIVER_DEST"
-sudo cp -R "$BUILD_DIR/build/BlackHole.driver" "$DRIVER_DEST"
+sudo cp -R "$DRIVER_BUILT" "$DRIVER_DEST"
 sudo chown -R root:wheel "$DRIVER_DEST"
 
 # Restart CoreAudio to load new driver immediately
