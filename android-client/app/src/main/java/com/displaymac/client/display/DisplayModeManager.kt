@@ -5,6 +5,7 @@ import android.os.Build
 import android.util.Log
 import android.view.Display
 import android.view.Window
+import android.view.WindowManager
 
 class DisplayModeManager(private val activity: Activity) {
     companion object {
@@ -23,7 +24,7 @@ class DisplayModeManager(private val activity: Activity) {
         val modes = display.supportedModes
         Log.i(TAG, "Available Display Modes count: ${modes.size}")
 
-        // Find the mode with highest refresh rate (e.g. 120Hz) matching native resolution
+        // Find the mode with highest refresh rate (e.g. 120Hz)
         var targetMode: Display.Mode? = null
         var maxFps = 0f
 
@@ -37,17 +38,10 @@ class DisplayModeManager(private val activity: Activity) {
 
         targetMode?.let {
             Log.i(TAG, "Locking display to Mode ID ${it.modeId}: ${it.physicalWidth}x${it.physicalHeight} @ ${it.refreshRate} FPS")
-            val params = window.attributes
+            val params: WindowManager.LayoutParams = window.attributes
             params.preferredDisplayModeId = it.modeId
+            params.preferredRefreshRate = it.refreshRate
             window.attributes = params
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                window.setFrameRate(it.refreshRate, SurfaceControlFrameRateCompat())
-            }
         }
-    }
-
-    private fun SurfaceControlFrameRateCompat(): Int {
-        return 0 // Surface.FRAME_RATE_COMPATIBILITY_DEFAULT
     }
 }

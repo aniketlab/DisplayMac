@@ -210,7 +210,7 @@ class ConnectionManager(
             }
         } catch (e: Exception) {
             Log.d(TAG, "Video stream disconnected: ${e.message}")
-            withContext(Dispatchers.Main) {
+            scope.launch(Dispatchers.Main) {
                 onDisconnected()
             }
         }
