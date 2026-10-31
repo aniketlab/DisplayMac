@@ -23,8 +23,8 @@ if [ ! -f "$DRIVER_SRC" ]; then
     exit 1
 fi
 
-# 1. Set initial dynamic tablet name
-echo "Samsung Galaxy Tab S10 Ultra (DisplayMac)" > "$NAME_FILE"
+# 1. Set initial dynamic audio device name (Neutral default)
+echo "DisplayMac Audio" > "$NAME_FILE"
 chmod 666 "$NAME_FILE"
 
 # 2. Compile driver bundle directly using clang
@@ -103,8 +103,9 @@ sleep 1
 
 echo ""
 echo "============================================================"
-echo "🎉 SUCCESS! Dynamic Audio Driver Installed!"
+echo "🎉 SUCCESS! DisplayMac Audio Driver Ready!"
 echo "• Open Control Center > Sound (Speaker icon) in your Menu Bar."
-echo "• You will now see: 'Samsung Galaxy Tab S10 Ultra (DisplayMac)'!"
-echo "• Select it to stream all Mac sound straight to your Tab S10 Ultra!"
+echo "• You will see: 'DisplayMac Audio' (idle/neutral state)."
+echo "• When your tablet connects: it dynamically switches to your tablet name!"
+echo "• Your Mac's built-in speakers & BenQ audio remain 100% original."
 echo "============================================================"

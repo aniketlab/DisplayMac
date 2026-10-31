@@ -258,6 +258,7 @@ static AudioServerPlugInHostRef     gPlugIn_Host                        = NULL;
 
 
 static CFStringRef                  gBox_Name                           = NULL;
+static CFStringRef                  gDevice_CustomName                  = NULL;
 
 #ifndef kBox_Aquired
 #define                             kBox_Aquired                 	true
@@ -448,6 +449,15 @@ else                                                                  \
 static CFStringRef get_box_uid(void)          { RETURN_FORMATTED_STRING(kBox_UID) }
 static CFStringRef get_device_uid(void)       { RETURN_FORMATTED_STRING(kDevice_UID) }
 static CFStringRef get_device_name(void) {
+    pthread_mutex_lock(&gPlugIn_StateMutex);
+    if (gDevice_CustomName != NULL) {
+        CFRetain(gDevice_CustomName);
+        CFStringRef customName = gDevice_CustomName;
+        pthread_mutex_unlock(&gPlugIn_StateMutex);
+        return customName;
+    }
+    pthread_mutex_unlock(&gPlugIn_StateMutex);
+
     FILE *f = fopen("/tmp/displaymac_audio_name.txt", "r");
     if (f) {
         char buf[256];
@@ -464,7 +474,7 @@ static CFStringRef get_device_name(void) {
             fclose(f);
         }
     }
-    return CFStringCreateWithCString(NULL, "Samsung Galaxy Tab S10 Ultra (DisplayMac)", kCFStringEncodingUTF8);
+    return CFStringCreateWithCString(NULL, "DisplayMac Audio", kCFStringEncodingUTF8);
 }
 static CFStringRef get_device2_uid(void)      { RETURN_FORMATTED_STRING(kDevice2_UID) }
 static CFStringRef get_device2_name(void)     { RETURN_FORMATTED_STRING(kDevice2_Name) }
@@ -2285,6 +2295,7 @@ static OSStatus	BlackHole_IsDevicePropertySettable(AudioServerPlugInDriverRef in
 			break;
 		
 		case kAudioDevicePropertyNominalSampleRate:
+		case kAudioObjectPropertyName:
 			*outIsSettable = true;
 			break;
 		
@@ -2901,6 +2912,29 @@ static OSStatus	BlackHole_SetDevicePropertyData(AudioServerPlugInDriverRef inDri
 	//	property in the BlackHole_GetDevicePropertyData() method.
 	switch(inAddress->mSelector)
 	{
+		case kAudioObjectPropertyName:
+			{
+				FailWithAction(inData == NULL, theAnswer = kAudioHardwareIllegalOperationError, Done, "BlackHole_SetDevicePropertyData: NULL data for kAudioObjectPropertyName");
+				FailWithAction(inDataSize != sizeof(CFStringRef), theAnswer = kAudioHardwareBadPropertySizeError, Done, "BlackHole_SetDevicePropertyData: wrong size for the data for kAudioObjectPropertyName");
+				CFStringRef* theNewName = (CFStringRef*)inData;
+				pthread_mutex_lock(&gPlugIn_StateMutex);
+				if((theNewName != NULL) && (*theNewName != NULL))
+				{
+					CFRetain(*theNewName);
+				}
+				if(gDevice_CustomName != NULL)
+				{
+					CFRelease(gDevice_CustomName);
+				}
+				gDevice_CustomName = (theNewName != NULL) ? *theNewName : NULL;
+				pthread_mutex_unlock(&gPlugIn_StateMutex);
+				*outNumberPropertiesChanged = 1;
+				outChangedAddresses[0].mSelector = kAudioObjectPropertyName;
+				outChangedAddresses[0].mScope = kAudioObjectPropertyScopeGlobal;
+				outChangedAddresses[0].mElement = kAudioObjectPropertyElementMain;
+			}
+			break;
+
 		case kAudioDevicePropertyNominalSampleRate:
 			//	Changing the sample rate needs to be handled via the
 			//	RequestConfigChange/PerformConfigChange machinery.

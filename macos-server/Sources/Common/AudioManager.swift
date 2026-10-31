@@ -14,13 +14,35 @@ public final class AudioManager {
     
     private init() {}
     
-    /// Sets the dynamic tablet model name (e.g. "Samsung Galaxy Tab S10 Ultra (DisplayMac)")
+    /// Sets the dynamic tablet model name (e.g. "Samsung Galaxy Tab S10 Ultra (DisplayMac)" or "DisplayMac Audio")
     public func setDynamicDeviceName(_ name: String) {
         do {
             try name.write(toFile: nameFilePath, atomically: true, encoding: .utf8)
-            print("[Audio] 🏷️ Dynamic audio device name set to: '\(name)'")
         } catch {
             print("[Audio] Failed to write dynamic audio device name: \(error)")
+        }
+        
+        // Directly update the property on the HAL device so macOS Menu Bar & Control Center reflect it immediately
+        if let dev = findTabletAudioDevice() {
+            var propAddress = AudioObjectPropertyAddress(
+                mSelector: kAudioObjectPropertyName,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            var cfName: CFString = name as CFString
+            let status = AudioObjectSetPropertyData(
+                dev.id,
+                &propAddress,
+                0,
+                nil,
+                UInt32(MemoryLayout<CFString>.size),
+                &cfName
+            )
+            if status == noErr {
+                print("[Audio] 🏷️ Live audio device name set to: '\(name)'")
+            } else {
+                print("[Audio] 🏷️ Dynamic audio device name recorded: '\(name)'")
+            }
         }
     }
     
@@ -139,6 +161,30 @@ public final class AudioManager {
         }
     }
     
+    /// Finds the physical Mac audio output device (Mac mini built-in speakers or BenQ monitor)
+    public func getPhysicalDefaultDevice() -> AudioDeviceID? {
+        let devices = getOutputDevices()
+        for dev in devices {
+            if !dev.name.contains("DisplayMac") && !dev.name.contains("Galaxy Tab") && !dev.name.contains("BlackHole") {
+                return dev.id
+            }
+        }
+        return nil
+    }
+    
+    /// Ensures that physical Mac hardware (Mac mini speakers or BenQ) is default, undoing any rogue selection
+    public func restorePhysicalMacAudio() {
+        if let currentDefault = getDefaultOutputDevice(),
+           let devName = getDeviceName(for: currentDefault),
+           (devName.contains("DisplayMac") || devName.contains("Galaxy Tab") || devName.contains("BlackHole")) {
+            if let physicalID = getPhysicalDefaultDevice() {
+                _ = setDefaultOutputDevice(physicalID)
+                let physName = getDeviceName(for: physicalID) ?? "Physical Hardware"
+                print("[Audio] 🔈 Restored default audio to physical hardware: '\(physName)'")
+            }
+        }
+    }
+    
     /// Start capturing audio loopback from the virtual tablet audio device
     public func startCapturing(deviceID: AudioDeviceID, onPCMData: @escaping (Data) -> Void) -> Bool {
         stopCapturing()
@@ -149,12 +195,11 @@ public final class AudioManager {
         let status = AudioDeviceCreateIOProcIDWithBlock(&proc, deviceID, nil) { [weak self] _, inInputData, _, _, _ in
             guard let self = self else { return }
             let bufferList = inInputData.pointee
-            let numBuffers = Int(bufferList.mNumberBuffers)
-            guard numBuffers > 0 else { return }
+            guard bufferList.mNumberBuffers > 0 else { return }
             
-            let buffers = UnsafeBufferPointer(start: &inInputData.pointee.mBuffers, count: numBuffers)
-            guard let mData = buffers[0].mData else { return }
-            let byteSize = Int(buffers[0].mDataByteSize)
+            let buffer = bufferList.mBuffers
+            guard let mData = buffer.mData else { return }
+            let byteSize = Int(buffer.mDataByteSize)
             
             let floatCount = byteSize / MemoryLayout<Float>.size
             guard floatCount > 0 else { return }

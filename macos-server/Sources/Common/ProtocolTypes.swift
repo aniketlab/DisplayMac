@@ -58,6 +58,7 @@ public struct ClientHello {
     public let dpi: UInt32
     public let codecMask: UInt8
     public let flags: UInt8
+    public let deviceName: String
     
     public init?(from data: Data) {
         guard data.count >= 18 else { return nil }
@@ -67,6 +68,13 @@ public struct ClientHello {
         self.dpi = data.readUInt32BE(at: 12)
         self.codecMask = data[16]
         self.flags = data[17]
+        
+        if data.count > 18 {
+            let nameData = data.subdata(in: 18..<data.count)
+            self.deviceName = String(data: nameData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        } else {
+            self.deviceName = ""
+        }
     }
 }
 

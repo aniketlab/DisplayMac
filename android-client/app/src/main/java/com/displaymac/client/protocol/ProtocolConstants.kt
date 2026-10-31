@@ -24,14 +24,18 @@ object ProtocolConstants {
     const val FRAME_TYPE_P_FRAME: Byte = 0x02
     const val FRAME_TYPE_AUDIO: Byte = 0x03
 
-    fun buildClientHello(width: Int, height: Int, refreshRate: Int, dpi: Int): ByteArray {
-        val payload = ByteBuffer.allocate(18).order(ByteOrder.BIG_ENDIAN)
+    fun buildClientHello(width: Int, height: Int, refreshRate: Int, dpi: Int, deviceName: String = ""): ByteArray {
+        val nameBytes = deviceName.toByteArray(Charsets.UTF_8)
+        val payload = ByteBuffer.allocate(18 + nameBytes.size).order(ByteOrder.BIG_ENDIAN)
         payload.putInt(width)
         payload.putInt(height)
         payload.putInt(refreshRate)
         payload.putInt(dpi)
         payload.put(0x02.toByte()) // Codec: HEVC
         payload.put(0x03.toByte()) // Flags: Stylus + HDR
+        if (nameBytes.isNotEmpty()) {
+            payload.put(nameBytes)
+        }
         
         return buildControlMessage(MSG_CLIENT_HELLO, payload.array())
     }

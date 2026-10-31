@@ -37,8 +37,12 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let ips = getLocalIPs()
         let ipList = ips.isEmpty ? "127.0.0.1" : ips.joined(separator: " or ")
         
-        // Start automatic USB-C cable bridge watchdog (auto-forwards 7100, 7101 whenever tablet is plugged)
+        // Start automatic USB-C cable bridge watchdog (auto-forwards 7100, 7101, 7102 whenever tablet is plugged)
         USBLinkManager.shared.startAutoBridge()
+        
+        // Audio Safeguards: Neutral default device name + restore Mac physical speakers/BenQ
+        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
+        AudioManager.shared.restorePhysicalMacAudio()
         
         // Verify Accessibility permissions for S-Pen and Mouse injection
         checkAccessibilityPermissions()
@@ -94,27 +98,19 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Setup Hardware HEVC encoder with medium-optimized bitrate
         _ = videoEncoder.setupSession(width: targetWidth, height: targetHeight, fps: targetFps, bitrateMbps: targetBitrateMbps)
         
-        // Smart Audio Management (Dynamic Device Name + Multiple Display Selection vs Single Auto-Select)
-        AudioManager.shared.setDynamicDeviceName("Samsung Galaxy Tab S10 Ultra (DisplayMac)")
+        // Smart Dynamic Audio Naming based on connected device handshake
+        let deviceModel = hello.deviceName.isEmpty ? "Samsung Galaxy Tab S10 Ultra" : hello.deviceName
+        let dynamicName = "\(deviceModel) (DisplayMac)"
+        AudioManager.shared.setDynamicDeviceName(dynamicName)
         
         if let tabletAudio = AudioManager.shared.findTabletAudioDevice() {
             // Start capturing direct audio loopback from the tablet virtual device
             _ = AudioManager.shared.startCapturing(deviceID: tabletAudio.id) { [weak self] pcmData in
                 self?.networkServer.broadcastAudioFrame(pcmData: pcmData)
             }
-            
-            let physicalDisplays = displayManager.getPhysicalDisplayIDs()
-            if physicalDisplays.isEmpty {
-                // Single Display / Headless mode: Auto-switch sound output to tablet
-                AudioManager.shared.saveCurrentOutputDevice()
-                if AudioManager.shared.setDefaultOutputDevice(tabletAudio.id) {
-                    print("[Audio] 🔈 Single display active: Auto-selected '\(tabletAudio.name)' as default audio speaker!")
-                }
-            } else {
-                // Multiple Displays mode (BenQ + Tablet): Allow user to select in Sound menu
-                print("[Audio] 🔈 Multiple displays detected (BenQ monitor active):")
-                print("        • Select '\(tabletAudio.name)' from macOS Sound menu anytime to route audio to tablet speakers!")
-            }
+            print("[Audio] 🔈 Dynamic Audio Driver active: '\(dynamicName)'")
+            print("        • Select '\(dynamicName)' from macOS Sound menu anytime to stream sound to tablet!")
+            print("        • Your Mac mini & BenQ physical audio is 100% untouched and preserved.")
         } else {
             print("[Audio] 🔈 Tip: Run './setup_dynamic_audio.sh' once to enable the dynamic tablet speaker in your Sound menu.")
         }
@@ -136,7 +132,9 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
         print("\n[Coordinator] 🔌 Client disconnected. Releasing virtual display...")
         AudioManager.shared.stopCapturing()
+        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
         AudioManager.shared.restorePreviousOutputDevice()
+        AudioManager.shared.restorePhysicalMacAudio()
         InputInjector.shared.updateActiveDisplay(displayID: nil)
         Task {
             await captureEngine.stopCapture()

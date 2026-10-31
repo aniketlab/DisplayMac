@@ -130,12 +130,14 @@ class ConnectionManager(
                     onConnected(connectionMode)
                 }
 
-                // Send ClientHello Handshake (2960x1848 @ 120Hz)
+                // Send ClientHello Handshake (2960x1848 @ 120Hz) with dynamic device marketing name
+                val deviceName = getDeviceMarketingName()
                 val helloPacket = ProtocolConstants.buildClientHello(
                     width = 2960,
                     height = 1848,
                     refreshRate = 120,
-                    dpi = 280
+                    dpi = 280,
+                    deviceName = deviceName
                 )
                 sendControlPacket(helloPacket)
 
@@ -301,6 +303,34 @@ class ConnectionManager(
         videoSocket = null
         audioSocket = null
         controlOutputStream = null
+    }
+
+    private fun getDeviceMarketingName(): String {
+        try {
+            val name = android.provider.Settings.Global.getString(context.contentResolver, "device_name")
+            if (!name.isNullOrBlank()) {
+                return name
+            }
+        } catch (_: Exception) {}
+
+        val manufacturer = android.os.Build.MANUFACTURER.replaceFirstChar { 
+            if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() 
+        }
+        val model = android.os.Build.MODEL
+        val friendlyModel = when {
+            model.equals("SM-X920", ignoreCase = true) || model.equals("SM-X926B", ignoreCase = true) -> "Galaxy Tab S10 Ultra"
+            model.equals("SM-X910", ignoreCase = true) || model.equals("SM-X916B", ignoreCase = true) -> "Galaxy Tab S9 Ultra"
+            model.equals("SM-X820", ignoreCase = true) -> "Galaxy Tab S10+"
+            model.equals("SM-X810", ignoreCase = true) -> "Galaxy Tab S9+"
+            model.equals("SM-X710", ignoreCase = true) -> "Galaxy Tab S9"
+            else -> model
+        }
+
+        return if (friendlyModel.startsWith(manufacturer, ignoreCase = true)) {
+            friendlyModel
+        } else {
+            "$manufacturer $friendlyModel"
+        }
     }
 
     fun shutdown() {
