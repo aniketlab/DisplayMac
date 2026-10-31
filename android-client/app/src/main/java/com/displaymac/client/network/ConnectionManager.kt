@@ -209,9 +209,7 @@ class ConnectionManager(
                 val payloadData = ByteArray(payloadLength)
                 dis.readFully(payloadData)
 
-                if (frameType == ProtocolConstants.FRAME_TYPE_AUDIO) {
-                    onAudioFrame(payloadData)
-                } else {
+                if (frameType != ProtocolConstants.FRAME_TYPE_AUDIO) {
                     val isKeyframe = (frameType == ProtocolConstants.FRAME_TYPE_KEYFRAME)
                     val ptsUs = ptsNano / 1000L
                     onVideoFrame(payloadData, ptsUs, isKeyframe)

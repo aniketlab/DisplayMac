@@ -290,7 +290,7 @@ class MainActivity : AppCompatActivity() {
         )
         this.connectionManager = connManager
 
-        // Attach S-Pen Stylus & Multi-Touch Input Handler
+        // Attach S-Pen Stylus & Multi-Touch Input Handler (Precision Pencil + Palm Rejection + Smooth Hover)
         val stylusHandler = StylusInputHandler { controlPacket ->
             connManager.sendControlPacket(controlPacket)
         }

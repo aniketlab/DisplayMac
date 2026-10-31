@@ -5,7 +5,6 @@ import CoreVideo
 
 public protocol ScreenCaptureEngineDelegate: AnyObject {
     func captureEngine(_ engine: ScreenCaptureEngine, didCaptureSampleBuffer sampleBuffer: CMSampleBuffer)
-    func captureEngine(_ engine: ScreenCaptureEngine, didCaptureAudioData data: Data, pts: CMTime)
 }
 
 public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
@@ -13,7 +12,6 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
     
     private var stream: SCStream?
     private let videoQueue = DispatchQueue(label: "com.displaymac.capture.video", qos: .userInteractive)
-    private let audioQueue = DispatchQueue(label: "com.displaymac.capture.audio", qos: .userInteractive)
     private var isRunning: Bool = false
     
     public func startCapture(displayID: CGDirectDisplayID, width: Int, height: Int, targetFps: Int = 120) async throws {
@@ -57,20 +55,15 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         configuration.showsCursor = true
         configuration.scalesToFit = false // Pixel-perfect 1:1 mapping, no blur
         configuration.queueDepth = 5
-        
-        // High-fidelity low-latency system audio capture
-        configuration.capturesAudio = true
-        configuration.sampleRate = 48000
-        configuration.channelCount = 2
+        configuration.capturesAudio = false
         
         let scStream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try scStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQueue)
-        try scStream.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQueue)
         
         try await scStream.startCapture()
         self.stream = scStream
         self.isRunning = true
-        print("[ScreenCapture] Active at \(width)x\(height) @ \(targetFps) FPS (Zero-Copy NV12 + 48kHz Stereo Audio)")
+        print("[ScreenCapture] Active at \(width)x\(height) @ \(targetFps) FPS (Zero-Copy Pure NV12 Engine)")
     }
     
     public func stopCapture() async {
@@ -87,51 +80,8 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
     
     // MARK: - SCStreamOutput Delegate
     public func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard sampleBuffer.isValid else { return }
-        
-        switch type {
-        case .screen:
-            delegate?.captureEngine(self, didCaptureSampleBuffer: sampleBuffer)
-            
-        case .audio:
-            guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return }
-            var totalLength = 0
-            var dataPointer: UnsafeMutablePointer<Int8>?
-            CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &totalLength, dataPointerOut: &dataPointer)
-            guard let ptr = dataPointer, totalLength > 0 else { return }
-            
-            // Check if format is Float32 PCM (default in ScreenCaptureKit)
-            if let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer),
-               let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDesc)?.pointee {
-                if (asbd.mFormatFlags & kAudioFormatFlagIsFloat) != 0 {
-                    let floatCount = totalLength / MemoryLayout<Float>.size
-                    let floatPtr = UnsafeRawPointer(ptr).assumingMemoryBound(to: Float.self)
-                    let pcm16 = convertFloatTo16BitPCM(pointer: floatPtr, sampleCount: floatCount)
-                    let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                    delegate?.captureEngine(self, didCaptureAudioData: pcm16, pts: pts)
-                    return
-                }
-            }
-            
-            let rawData = Data(bytes: ptr, count: totalLength)
-            let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-            delegate?.captureEngine(self, didCaptureAudioData: rawData, pts: pts)
-            
-        @unknown default:
-            break
-        }
-    }
-    
-    private func convertFloatTo16BitPCM(pointer: UnsafePointer<Float>, sampleCount: Int) -> Data {
-        var int16Data = Data(count: sampleCount * 2)
-        int16Data.withUnsafeMutableBytes { (dest: UnsafeMutableRawBufferPointer) in
-            let destPtr = dest.baseAddress!.assumingMemoryBound(to: Int16.self)
-            for i in 0..<sampleCount {
-                let clamped = max(-1.0, min(1.0, pointer[i]))
-                destPtr[i] = Int16(clamped * 32767.0)
-            }
-        }
-        return int16Data
+        guard type == .screen, sampleBuffer.isValid else { return }
+        delegate?.captureEngine(self, didCaptureSampleBuffer: sampleBuffer)
     }
     
     // MARK: - SCStreamDelegate

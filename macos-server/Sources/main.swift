@@ -72,10 +72,12 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         _ = displayManager.setupVirtualDisplay(width: targetWidth, height: targetHeight, refreshRate: targetFps)
         
         if let displayID = displayManager.activeDisplayID {
+            InputInjector.shared.updateActiveDisplay(displayID: displayID)
             let bounds = CGDisplayBounds(displayID)
             InputInjector.shared.updateScreenBounds(originX: bounds.origin.x, originY: bounds.origin.y, width: bounds.width, height: bounds.height)
             print("[Coordinator] Touch/Stylus bounds mapped to logical: (\(Int(bounds.origin.x)), \(Int(bounds.origin.y)), \(Int(bounds.width))x\(Int(bounds.height))) (HiDPI Retina)")
         } else {
+            InputInjector.shared.updateActiveDisplay(displayID: nil)
             InputInjector.shared.updateScreenBounds(originX: 0, originY: 0, width: CGFloat(targetWidth), height: CGFloat(targetHeight))
         }
         
@@ -98,6 +100,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
             do {
                 try await captureEngine.startCapture(displayID: displayID, width: targetWidth, height: targetHeight, targetFps: targetFps)
                 self.isStreaming = true
+                InputInjector.shared.updateActiveDisplay(displayID: displayID)
                 print("[Coordinator] 🚀 Active streaming pipeline engaged at \(targetWidth)x\(targetHeight) @ \(targetFps) FPS!")
             } catch {
                 print("[Coordinator] Error starting screen capture: \(error.localizedDescription)")
@@ -107,6 +110,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
         print("\n[Coordinator] 🔌 Client disconnected. Releasing virtual display...")
+        InputInjector.shared.updateActiveDisplay(displayID: nil)
         Task {
             await captureEngine.stopCapture()
         }
@@ -122,10 +126,6 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     // MARK: - ScreenCaptureEngineDelegate
     func captureEngine(_ engine: ScreenCaptureEngine, didCaptureSampleBuffer sampleBuffer: CMSampleBuffer) {
         videoEncoder.encode(sampleBuffer: sampleBuffer)
-    }
-    
-    func captureEngine(_ engine: ScreenCaptureEngine, didCaptureAudioData data: Data, pts: CMTime) {
-        networkServer.broadcastAudioFrame(pcmData: data, pts: pts)
     }
     
     // MARK: - HardwareVideoEncoderDelegate

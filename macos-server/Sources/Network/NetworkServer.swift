@@ -283,31 +283,4 @@ public final class NetworkServer {
             self.inFlightFrames = max(0, self.inFlightFrames - 1)
         }))
     }
-    
-    public func broadcastAudioFrame(pcmData: Data, pts: CMTime) {
-        guard let connection = videoConnection, connection.state == .ready else { return }
-        
-        // 20-byte Audio Header: Magic(2) + FrameType(1) + Codec(1) + SeqNum(4) + PTS(8) + PayloadLength(4)
-        var packet = Data(capacity: 20 + pcmData.count)
-        
-        var magicBE = ProtocolConstants.magic.bigEndian
-        packet.append(Data(bytes: &magicBE, count: 2))
-        
-        packet.append(FrameType.audio.rawValue) // 0x03
-        packet.append(0x00) // Raw Linear PCM 16-bit 48kHz Stereo
-        
-        var seqBE = frameSequenceNumber.bigEndian
-        packet.append(Data(bytes: &seqBE, count: 4))
-        frameSequenceNumber &+= 1
-        
-        var ptsNanoseconds = UInt64(CMTimeGetSeconds(pts) * 1_000_000_000).bigEndian
-        packet.append(Data(bytes: &ptsNanoseconds, count: 8))
-        
-        var payloadLengthBE = UInt32(pcmData.count).bigEndian
-        packet.append(Data(bytes: &payloadLengthBE, count: 4))
-        
-        packet.append(pcmData)
-        
-        connection.send(content: packet, completion: .idempotent)
-    }
 }
