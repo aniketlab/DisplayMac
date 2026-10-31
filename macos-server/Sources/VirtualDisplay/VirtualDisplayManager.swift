@@ -12,6 +12,7 @@ public final class VirtualDisplayManager {
     public private(set) var currentWidth: Int = 2960
     public private(set) var currentHeight: Int = 1848
     public private(set) var currentRefreshRate: Int = 120
+    private var currentProductID: UInt32 = 35638
     
     private init() {}
     
@@ -46,7 +47,8 @@ public final class VirtualDisplayManager {
             descriptor.setValue(UInt32(width), forKey: "maxPixelsWide")
             descriptor.setValue(UInt32(height), forKey: "maxPixelsHigh")
             descriptor.setValue(CGSize(width: 314, height: 196), forKey: "sizeInMillimeters") // 14.6" 16:10
-            descriptor.setValue(UInt32(35638), forKey: "productID")
+            descriptor.setValue(currentProductID, forKey: "productID")
+            currentProductID &+= 1
             descriptor.setValue(UInt32(0x444D), forKey: "vendorID")
             
             let allocSel = NSSelectorFromString("alloc")

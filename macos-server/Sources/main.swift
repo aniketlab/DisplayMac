@@ -11,7 +11,6 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     private var isStreaming = false
     private var encodedFrameCount: Int = 0
     private var lastStatsTime = Date()
-    private var displayReleaseWorkItem: DispatchWorkItem?
     
     init() {
         captureEngine.delegate = self
@@ -64,10 +63,6 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     // MARK: - NetworkServerDelegate
     func networkServer(_ server: NetworkServer, didConnectClient hello: ClientHello) {
         print("\n[Coordinator] ⚡ Tablet Connected! Handshake: \(hello.displayWidth)x\(hello.displayHeight) @ \(hello.maxRefreshRate)Hz")
-        
-        // Cancel any pending virtual display teardown from a quick reconnect/cable replug
-        displayReleaseWorkItem?.cancel()
-        displayReleaseWorkItem = nil
         
         let targetWidth = Int(hello.displayWidth)
         let targetHeight = Int(hello.displayHeight)
@@ -146,19 +141,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
             await captureEngine.stopCapture()
         }
         isStreaming = false
-        
-        // Smart Grace Period (4 seconds): Keep virtual display alive briefly
-        // so quick reconnects or cable adjustments don't scramble open windows back to BenQ monitor!
-        displayReleaseWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self, !self.isStreaming else { return }
-            print("[Coordinator] ⏳ Grace period expired. Releasing virtual display...")
-            InputInjector.shared.updateActiveDisplay(displayID: nil)
-            self.displayManager.releaseVirtualDisplay()
-            print("[Coordinator] ✅ Virtual display removed cleanly. BenQ monitor is primary.")
-        }
-        self.displayReleaseWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0, execute: workItem)
+        print("[Coordinator] ⏸️ Capture paused. Virtual display preserved for instantaneous 0-delay reconnect!")
     }
     
     func networkServerDidRequestKeyframe(_ server: NetworkServer) {
