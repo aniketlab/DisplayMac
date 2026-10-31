@@ -150,15 +150,26 @@ public final class AudioManager {
     
     /// Saves current default audio output so it can be restored on disconnect
     public func saveCurrentOutputDevice() {
-        self.previousDefaultDeviceID = getDefaultOutputDevice()
+        if let current = getDefaultOutputDevice(),
+           let name = getDeviceName(for: current),
+           !name.contains("DisplayMac") && !name.contains("Galaxy Tab") && !name.contains("BlackHole") {
+            self.previousDefaultDeviceID = current
+            print("[Audio] 💾 Saved active physical audio output: '\(name)'")
+        }
     }
     
     /// Restores previous audio output device on client disconnect
     public func restorePreviousOutputDevice() {
-        if let previousID = previousDefaultDeviceID {
+        if let previousID = previousDefaultDeviceID,
+           let name = getDeviceName(for: previousID) {
             _ = setDefaultOutputDevice(previousID)
+            print("[Audio] 🔈 Restored audio output to previous device: '\(name)'")
             self.previousDefaultDeviceID = nil
+            return
         }
+        
+        // Automatic fallback: restore to physical hardware (BenQ monitor or Mac mini speakers)
+        restorePhysicalMacAudio()
     }
     
     /// Finds the physical Mac audio output device (Mac mini built-in speakers or BenQ monitor)

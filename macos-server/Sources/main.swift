@@ -98,6 +98,9 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Setup Hardware HEVC encoder with medium-optimized bitrate
         _ = videoEncoder.setupSession(width: targetWidth, height: targetHeight, fps: targetFps, bitrateMbps: targetBitrateMbps)
         
+        // Save active physical audio device (BenQ monitor or Mac mini speakers)
+        AudioManager.shared.saveCurrentOutputDevice()
+        
         // Smart Dynamic Audio Naming based on connected device handshake
         let deviceModel = hello.deviceName.isEmpty ? "Samsung Galaxy Tab S10 Ultra" : hello.deviceName
         let dynamicName = "\(deviceModel) (DisplayMac)"
@@ -134,7 +137,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
         print("\n[Coordinator] 🔌 Client disconnected. Pausing capture...")
         AudioManager.shared.stopCapturing()
-        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
+        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio (Offline)")
         AudioManager.shared.restorePreviousOutputDevice()
         AudioManager.shared.restorePhysicalMacAudio()
         Task {
@@ -154,7 +157,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     }
     
     func captureEngine(_ engine: ScreenCaptureEngine, didCaptureAudioData data: Data) {
-        networkServer.broadcastAudioFrame(pcmData: data)
+        // Direct CoreAudio HAL in AudioManager handles tablet audio loopback
     }
     
     // MARK: - HardwareVideoEncoderDelegate

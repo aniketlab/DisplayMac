@@ -55,19 +55,13 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         configuration.scalesToFit = false // Pixel-perfect 1:1 mapping, no blur
         configuration.queueDepth = 3 // Minimum possible queue depth in ScreenCaptureKit to eliminate buffer latency
         
-        // Enable high-fidelity 48kHz Stereo Audio capture
-        configuration.capturesAudio = true
-        configuration.sampleRate = 48000
-        configuration.channelCount = 2
-        
         let scStream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try scStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQueue)
-        try scStream.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQueue)
         
         try await scStream.startCapture()
         self.stream = scStream
         self.isRunning = true
-        print("[ScreenCapture] Active at \(width)x\(height) @ \(targetFps) FPS (Zero-Copy Pure NV12 Engine + 48kHz Stereo Audio)")
+        print("[ScreenCapture] Active at \(width)x\(height) @ \(targetFps) FPS (Zero-Copy Pure NV12 Engine)")
     }
     
     public func stopCapture() async {

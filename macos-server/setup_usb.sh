@@ -29,10 +29,10 @@ DEVICES=$($ADB_BIN devices | grep -v "List" | grep "device" | wc -l | tr -d ' ')
 
 if [ "$DEVICES" -eq 0 ]; then
     echo ""
-    echo "⚠️ Tablet detected nahi hua. Yeh 2 cheezein check kijiye:"
-    echo "1. Samsung Settings > Security and privacy > 'Auto Blocker' ko OFF kijiye (warna Samsung USB block karta hai)."
-    echo "2. Developer Options me 'USB Debugging' ON kijiye."
-    echo "3. Tablet screen par 'Allow USB Debugging' popup aane par 'Always Allow' kijiye."
+    echo "⚠️ Tablet not detected over USB. Please verify the following requirements:"
+    echo "1. Samsung Settings > Security and privacy: Turn 'Auto Blocker' OFF (Samsung blocks USB data when enabled)."
+    echo "2. Settings > Developer Options: Ensure 'USB Debugging' is enabled."
+    echo "3. Tablet Display: Tap 'Always Allow' when the USB Debugging authorization prompt appears."
     echo ""
     exit 1
 fi
