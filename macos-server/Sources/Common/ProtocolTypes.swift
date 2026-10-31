@@ -29,6 +29,7 @@ public struct ProtocolConstants {
     public static let currentVersion: UInt8 = 0x01
     public static let controlPort: UInt16 = 7100
     public static let videoPort: UInt16 = 7101
+    public static let audioPort: UInt16 = 7102
     public static let bonjourServiceType = "_displaymac._tcp"
 }
 

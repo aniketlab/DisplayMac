@@ -147,6 +147,10 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         videoEncoder.encode(sampleBuffer: sampleBuffer)
     }
     
+    func captureEngine(_ engine: ScreenCaptureEngine, didCaptureAudioData data: Data) {
+        networkServer.broadcastAudioFrame(pcmData: data)
+    }
+    
     // MARK: - HardwareVideoEncoderDelegate
     func videoEncoder(_ encoder: HardwareVideoEncoder, didEncodePacket data: Data, isKeyframe: Bool, pts: CMTime) {
         networkServer.broadcastVideoFrame(naluData: data, isKeyframe: isKeyframe, pts: pts)

@@ -2,9 +2,11 @@ import Foundation
 import ScreenCaptureKit
 import CoreMedia
 import CoreVideo
+import AVFoundation
 
 public protocol ScreenCaptureEngineDelegate: AnyObject {
     func captureEngine(_ engine: ScreenCaptureEngine, didCaptureSampleBuffer sampleBuffer: CMSampleBuffer)
+    func captureEngine(_ engine: ScreenCaptureEngine, didCaptureAudioData data: Data)
 }
 
 public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelegate {
@@ -12,6 +14,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
     
     private var stream: SCStream?
     private let videoQueue = DispatchQueue(label: "com.displaymac.capture.video", qos: .userInteractive)
+    private let audioQueue = DispatchQueue(label: "com.displaymac.capture.audio", qos: .userInteractive)
     private var isRunning: Bool = false
     
     public func startCapture(displayID: CGDirectDisplayID, width: Int, height: Int, targetFps: Int = 120) async throws {
@@ -55,15 +58,20 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         configuration.showsCursor = true
         configuration.scalesToFit = false // Pixel-perfect 1:1 mapping, no blur
         configuration.queueDepth = 5
-        configuration.capturesAudio = false
+        
+        // Enable high-fidelity 48kHz Stereo Audio capture
+        configuration.capturesAudio = true
+        configuration.sampleRate = 48000
+        configuration.channelCount = 2
         
         let scStream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try scStream.addStreamOutput(self, type: .screen, sampleHandlerQueue: videoQueue)
+        try scStream.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQueue)
         
         try await scStream.startCapture()
         self.stream = scStream
         self.isRunning = true
-        print("[ScreenCapture] Active at \(width)x\(height) @ \(targetFps) FPS (Zero-Copy Pure NV12 Engine)")
+        print("[ScreenCapture] Active at \(width)x\(height) @ \(targetFps) FPS (Zero-Copy Pure NV12 Engine + 48kHz Stereo Audio)")
     }
     
     public func stopCapture() async {
@@ -80,8 +88,86 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
     
     // MARK: - SCStreamOutput Delegate
     public func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard type == .screen, sampleBuffer.isValid else { return }
-        delegate?.captureEngine(self, didCaptureSampleBuffer: sampleBuffer)
+        guard sampleBuffer.isValid else { return }
+        
+        if type == .screen {
+            delegate?.captureEngine(self, didCaptureSampleBuffer: sampleBuffer)
+        } else if type == .audio {
+            if let pcm16Data = extractPCM16Data(from: sampleBuffer) {
+                delegate?.captureEngine(self, didCaptureAudioData: pcm16Data)
+            }
+        }
+    }
+    
+    // MARK: - Audio Format Conversion (Float32 Planar/Interleaved -> Int16 Stereo PCM)
+    private func extractPCM16Data(from sampleBuffer: CMSampleBuffer) -> Data? {
+        guard let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer),
+              let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)?.pointee else {
+            return nil
+        }
+        
+        var audioBufferList = AudioBufferList()
+        var blockBuffer: CMBlockBuffer?
+        
+        let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+            sampleBuffer,
+            bufferListSizeNeededOut: nil,
+            bufferListOut: &audioBufferList,
+            bufferListSize: MemoryLayout<AudioBufferList>.size,
+            blockBufferAllocator: nil,
+            blockBufferMemoryAllocator: nil,
+            flags: 0,
+            blockBufferOut: &blockBuffer
+        )
+        guard status == noErr else { return nil }
+        
+        let isFloat = (asbd.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+        let isNonInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
+        let numBuffers = Int(audioBufferList.mNumberBuffers)
+        
+        if isFloat {
+            let buffers = UnsafeBufferPointer(start: &audioBufferList.mBuffers, count: numBuffers)
+            if isNonInterleaved && numBuffers >= 2 {
+                // Stereo non-interleaved (L in buf 0, R in buf 1)
+                guard let leftPtr = buffers[0].mData?.assumingMemoryBound(to: Float.self),
+                      let rightPtr = buffers[1].mData?.assumingMemoryBound(to: Float.self) else { return nil }
+                let frameCount = Int(buffers[0].mDataByteSize) / MemoryLayout<Float>.size
+                guard frameCount > 0 else { return nil }
+                
+                var pcmData = Data(count: frameCount * 4) // 2 channels * 2 bytes
+                pcmData.withUnsafeMutableBytes { rawOut in
+                    let outPtr = rawOut.bindMemory(to: Int16.self).baseAddress!
+                    for i in 0..<frameCount {
+                        let l = max(-1.0, min(1.0, leftPtr[i]))
+                        let r = max(-1.0, min(1.0, rightPtr[i]))
+                        outPtr[i * 2] = Int16(l * 32767.0)
+                        outPtr[i * 2 + 1] = Int16(r * 32767.0)
+                    }
+                }
+                return pcmData
+            } else if numBuffers >= 1 {
+                // Interleaved Float32
+                guard let floatPtr = buffers[0].mData?.assumingMemoryBound(to: Float.self) else { return nil }
+                let sampleCount = Int(buffers[0].mDataByteSize) / MemoryLayout<Float>.size
+                guard sampleCount > 0 else { return nil }
+                
+                var pcmData = Data(count: sampleCount * 2)
+                pcmData.withUnsafeMutableBytes { rawOut in
+                    let outPtr = rawOut.bindMemory(to: Int16.self).baseAddress!
+                    for i in 0..<sampleCount {
+                        let s = max(-1.0, min(1.0, floatPtr[i]))
+                        outPtr[i] = Int16(s * 32767.0)
+                    }
+                }
+                return pcmData
+            }
+        } else {
+            // Already integer PCM
+            guard let mData = audioBufferList.mBuffers.mData else { return nil }
+            return Data(bytes: mData, count: Int(audioBufferList.mBuffers.mDataByteSize))
+        }
+        
+        return nil
     }
     
     // MARK: - SCStreamDelegate

@@ -8,6 +8,7 @@ object ProtocolConstants {
     const val VERSION: Byte = 0x01
     const val CONTROL_PORT = 7100
     const val VIDEO_PORT = 7101
+    const val AUDIO_PORT = 7102
     const val BONJOUR_SERVICE_TYPE = "_displaymac._tcp."
 
     // Message Types

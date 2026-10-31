@@ -6,6 +6,7 @@ import android.net.nsd.NsdServiceInfo
 import android.util.Log
 import com.displaymac.client.protocol.ProtocolConstants
 import kotlinx.coroutines.*
+import java.io.BufferedInputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetSocketAddress
@@ -27,6 +28,7 @@ class ConnectionManager(
 
     private var controlSocket: Socket? = null
     private var videoSocket: Socket? = null
+    private var audioSocket: Socket? = null
     private var controlOutputStream: DataOutputStream? = null
 
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -141,6 +143,22 @@ class ConnectionManager(
                 launch { readVideoStream(vSocket) }
                 launch { readControlStream(cSocket) }
 
+                // Connect Dedicated Audio Channel (Port 7102) asynchronously (Zero-Lag Wire Audio)
+                launch {
+                    try {
+                        val aSocket = Socket()
+                        aSocket.tcpNoDelay = true
+                        aSocket.receiveBufferSize = 512 * 1024
+                        aSocket.soTimeout = 0
+                        aSocket.connect(InetSocketAddress(host, ProtocolConstants.AUDIO_PORT), 3500)
+                        audioSocket = aSocket
+                        Log.i(TAG, "🎵 Audio Channel connected to $host:${ProtocolConstants.AUDIO_PORT}")
+                        readAudioStream(aSocket)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Audio Channel not reachable on port 7102: ${e.message}")
+                    }
+                }
+
             } catch (e: Exception) {
                 Log.e(TAG, "Connection failed to $host", e)
                 cleanupSockets()
@@ -221,6 +239,31 @@ class ConnectionManager(
         }
     }
 
+    private fun readAudioStream(socket: Socket) {
+        try {
+            val dis = DataInputStream(BufferedInputStream(socket.getInputStream(), 16384))
+            val headerBuffer = ByteArray(8)
+            while (_isConnected.get() && !socket.isClosed) {
+                dis.readFully(headerBuffer)
+                val bb = ByteBuffer.wrap(headerBuffer).order(ByteOrder.BIG_ENDIAN)
+                val magic = bb.short
+                if (magic != ProtocolConstants.MAGIC) continue
+                val type = bb.get()
+                val reserved = bb.get()
+                val length = bb.int
+                if (length in 1..65536) {
+                    val pcmData = ByteArray(length)
+                    dis.readFully(pcmData)
+                    onAudioFrame(pcmData)
+                }
+            }
+        } catch (e: Exception) {
+            Log.i(TAG, "Audio stream ended: ${e.message}")
+        } finally {
+            try { socket.close() } catch (_: Exception) {}
+        }
+    }
+
     private fun handleRemoteDisconnect() {
         if (_isConnected.compareAndSet(true, false)) {
             Log.i(TAG, "Remote server disconnected or connection closed.")
@@ -251,8 +294,12 @@ class ConnectionManager(
         try {
             videoSocket?.close()
         } catch (_: Exception) {}
+        try {
+            audioSocket?.close()
+        } catch (_: Exception) {}
         controlSocket = null
         videoSocket = null
+        audioSocket = null
         controlOutputStream = null
     }
 

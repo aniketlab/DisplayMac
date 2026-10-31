@@ -17,6 +17,11 @@ public final class NetworkServer {
     private var controlConnection: NWConnection?
     private var videoConnection: NWConnection?
     
+    // Audio Channel (Dedicated Port 7102)
+    private var audioListener: NWListener?
+    private var audioConnection: NWConnection?
+    private let audioQueue = DispatchQueue(label: "com.displaymac.network.audio", qos: .userInteractive)
+    
     private let serverQueue = DispatchQueue(label: "com.displaymac.network.queue", qos: .userInteractive)
     private var frameSequenceNumber: UInt32 = 0
     private var inFlightFrames = 0
@@ -45,7 +50,9 @@ public final class NetworkServer {
         return params
     }
     
-    public func start(controlPort: UInt16 = ProtocolConstants.controlPort, videoPort: UInt16 = ProtocolConstants.videoPort) throws {
+    public func start(controlPort: UInt16 = ProtocolConstants.controlPort,
+                       videoPort: UInt16 = ProtocolConstants.videoPort,
+                       audioPort: UInt16 = ProtocolConstants.audioPort) throws {
         // Control Channel Listener
         let tcpParams = NetworkServer.createTcpParameters()
         let cListener = try NWListener(using: tcpParams, on: NWEndpoint.Port(rawValue: controlPort)!)
@@ -71,7 +78,7 @@ public final class NetworkServer {
         cListener.start(queue: serverQueue)
         self.controlListener = cListener
         
-        // Video Channel Listener
+        // Video Channel Listener (Port 7101 - Pure 120 FPS Video)
         let vParams = NetworkServer.createTcpParameters()
         let vListener = try NWListener(using: vParams, on: NWEndpoint.Port(rawValue: videoPort)!)
         
@@ -92,13 +99,37 @@ public final class NetworkServer {
         
         vListener.start(queue: serverQueue)
         self.videoListener = vListener
+        
+        // Audio Channel Listener (Port 7102 - Dedicated Crystal-Clear Wire Audio)
+        let aParams = NetworkServer.createTcpParameters()
+        let aListener = try NWListener(using: aParams, on: NWEndpoint.Port(rawValue: audioPort)!)
+        
+        aListener.stateUpdateHandler = { state in
+            switch state {
+            case .ready:
+                print("[NetworkServer] Audio Channel ready on port \(audioPort) (Isolated 48kHz Stereo)")
+            case .failed(let error):
+                print("[NetworkServer] Audio Listener failed: \(error)")
+            default:
+                break
+            }
+        }
+        
+        aListener.newConnectionHandler = { [weak self] connection in
+            self?.handleNewAudioConnection(connection)
+        }
+        
+        aListener.start(queue: audioQueue)
+        self.audioListener = aListener
     }
     
     public func stop() {
         controlConnection?.cancel()
         videoConnection?.cancel()
+        audioConnection?.cancel()
         controlListener?.cancel()
         videoListener?.cancel()
+        audioListener?.cancel()
     }
     
     // MARK: - Control Connection Handling
@@ -282,5 +313,48 @@ public final class NetworkServer {
             guard let self = self else { return }
             self.inFlightFrames = max(0, self.inFlightFrames - 1)
         }))
+    }
+    
+    // MARK: - Audio Connection Handling (Dedicated Port 7102)
+    private func handleNewAudioConnection(_ connection: NWConnection) {
+        print("[NetworkServer] 🎵 New client connected on Audio Channel: \(connection.endpoint)")
+        self.audioConnection?.cancel()
+        self.audioConnection = connection
+        
+        connection.stateUpdateHandler = { [weak self] state in
+            guard let self = self else { return }
+            switch state {
+            case .failed(let error):
+                print("[NetworkServer] Audio connection failed: \(error)")
+                self.audioConnection = nil
+            case .cancelled:
+                print("[NetworkServer] Audio connection closed.")
+                self.audioConnection = nil
+            default:
+                break
+            }
+        }
+        
+        connection.start(queue: audioQueue)
+    }
+    
+    public func broadcastAudioFrame(pcmData: Data) {
+        guard let connection = audioConnection, connection.state == .ready else { return }
+        
+        // 8-byte Audio Header: Magic(2) + FrameType(1) + Reserved(1) + PayloadLength(4)
+        var packet = Data(capacity: 8 + pcmData.count)
+        
+        var magicBE = ProtocolConstants.magic.bigEndian
+        packet.append(Data(bytes: &magicBE, count: 2))
+        
+        packet.append(FrameType.audio.rawValue) // 0x03
+        packet.append(0x00) // Reserved
+        
+        var payloadLengthBE = UInt32(pcmData.count).bigEndian
+        packet.append(Data(bytes: &payloadLengthBE, count: 4))
+        
+        packet.append(pcmData)
+        
+        connection.send(content: packet, completion: .idempotent)
     }
 }
