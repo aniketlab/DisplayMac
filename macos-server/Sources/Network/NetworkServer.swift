@@ -16,6 +16,7 @@ public final class NetworkServer {
     
     private var controlConnection: NWConnection?
     private var videoConnection: NWConnection?
+    public var onClientBrightnessChanged: ((Float) -> Void)?
     
     // Audio Channel (Dedicated Port 7102)
     private var audioListener: NWListener?
@@ -217,9 +218,34 @@ public final class NetworkServer {
         case .ping:
             sendPong()
             
+        case .setBrightness:
+            if payload.count >= 4 {
+                let bitPattern = payload.readUInt32BE(at: 0)
+                let val = Float(bitPattern: bitPattern)
+                onClientBrightnessChanged?(val)
+            }
+            
         default:
             break
         }
+    }
+    
+    public func sendBrightness(_ percent: Float) {
+        guard let connection = controlConnection else { return }
+        let clamped = max(0.01, min(1.0, percent))
+        var valBE = clamped.bitPattern.bigEndian
+        let payload = Data(bytes: &valBE, count: 4)
+        
+        var packet = Data()
+        var magicBE = ProtocolConstants.magic.bigEndian
+        packet.append(Data(bytes: &magicBE, count: 2))
+        packet.append(ProtocolConstants.currentVersion)
+        packet.append(MessageType.setBrightness.rawValue)
+        var lengthBE = UInt32(payload.count).bigEndian
+        packet.append(Data(bytes: &lengthBE, count: 4))
+        packet.append(payload)
+        
+        connection.send(content: packet, completion: .contentProcessed({ _ in }))
     }
     
     public func sendServerConfig(_ config: ServerConfig) {

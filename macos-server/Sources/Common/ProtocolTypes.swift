@@ -10,6 +10,7 @@ public enum MessageType: UInt8 {
     case stylusEvent     = 0x11
     case mouseEvent      = 0x12
     case keyboardEvent   = 0x13
+    case setBrightness   = 0x20
 }
 
 public enum VideoCodec: UInt8 {

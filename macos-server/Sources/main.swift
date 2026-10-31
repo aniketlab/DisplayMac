@@ -44,6 +44,34 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
         AudioManager.shared.restorePhysicalMacAudio()
         
+        // Initialize native DisplayMac Menu Bar Item & Hardware Brightness System
+        DisplayMacMenuManager.shared.setupMenu()
+        DisplayMacMenuManager.shared.onBrightnessChanged = { [weak self] val in
+            self?.networkServer.sendBrightness(val)
+        }
+        networkServer.onClientBrightnessChanged = { val in
+            DisplayMacMenuManager.shared.updateBrightness(val, fromUI: true)
+        }
+        
+        // Listen to interactive terminal brightness shortcuts in background
+        DispatchQueue.global(qos: .utility).async {
+            while true {
+                guard let line = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else { continue }
+                if line == "+" || line == "up" {
+                    DisplayMacMenuManager.shared.adjustBrightness(delta: 0.10)
+                } else if line == "-" || line == "down" {
+                    DisplayMacMenuManager.shared.adjustBrightness(delta: -0.10)
+                } else if line.starts(with: "b ") || line.starts(with: "bright ") {
+                    let parts = line.components(separatedBy: " ")
+                    if parts.count > 1, let num = Float(parts[1]) {
+                        DisplayMacMenuManager.shared.updateBrightness(num > 1.0 ? (num / 100.0) : num)
+                    }
+                } else if let num = Float(line) {
+                    DisplayMacMenuManager.shared.updateBrightness(num > 1.0 ? (num / 100.0) : num)
+                }
+            }
+        }
+        
         // Verify Accessibility permissions for S-Pen and Mouse injection
         checkAccessibilityPermissions()
         
@@ -102,6 +130,8 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let deviceModel = hello.deviceName.isEmpty ? "Samsung Galaxy Tab S10 Ultra" : hello.deviceName
         let dynamicName = "\(deviceModel) (DisplayMac)"
         AudioManager.shared.setDynamicDeviceName(dynamicName)
+        DisplayMacMenuManager.shared.updateConnectedDevice(deviceModel)
+        networkServer.sendBrightness(0.80)
         
         if let tabletAudio = AudioManager.shared.findTabletAudioDevice() {
             // Start capturing direct audio loopback from the tablet virtual device
@@ -135,6 +165,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
         AudioManager.shared.restorePreviousOutputDevice()
         AudioManager.shared.restorePhysicalMacAudio()
+        DisplayMacMenuManager.shared.updateConnectedDevice("Ready to Connect")
         InputInjector.shared.updateActiveDisplay(displayID: nil)
         Task {
             await captureEngine.stopCapture()

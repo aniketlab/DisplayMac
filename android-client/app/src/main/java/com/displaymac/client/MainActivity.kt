@@ -286,14 +286,29 @@ class MainActivity : AppCompatActivity() {
             },
             onAudioFrame = { pcm ->
                 audioPlayer?.playAudio(pcm)
+            },
+            onBrightness = { brightness ->
+                runOnUiThread {
+                    applyHardwareBrightness(brightness)
+                }
             }
         )
         this.connectionManager = connManager
 
         // Attach S-Pen Stylus & Multi-Touch Input Handler (Precision Pencil + Palm Rejection + Smooth Hover)
-        val stylusHandler = StylusInputHandler { controlPacket ->
-            connManager.sendControlPacket(controlPacket)
-        }
+        val stylusHandler = StylusInputHandler(
+            sendControlPacket = { controlPacket ->
+                connManager.sendControlPacket(controlPacket)
+            },
+            onEdgeBrightnessChange = { delta ->
+                runOnUiThread {
+                    val current = window.attributes.screenBrightness.let { if (it < 0) 0.8f else it }
+                    val newBright = (current + delta).coerceIn(0.01f, 1.0f)
+                    applyHardwareBrightness(newBright)
+                    connManager.sendBrightness(newBright)
+                }
+            }
+        )
         videoSurface.setOnTouchListener(stylusHandler)
         videoSurface.setOnHoverListener(stylusHandler)
 
@@ -304,6 +319,35 @@ class MainActivity : AppCompatActivity() {
             }
             tvWifiDiscoveryStatus.text = "• Both devices on same Wi-Fi router\n• ✅ Discovered Mac: $discoveredIp\n• Tap 'Connect via Wi-Fi' below"
         }
+    }
+
+    private var brightnessHudRunnable: Runnable? = null
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private fun applyHardwareBrightness(value: Float) {
+        val clamped = value.coerceIn(0.01f, 1.0f)
+        val lp = window.attributes
+        lp.screenBrightness = clamped
+        window.attributes = lp
+        showBrightnessToast((clamped * 100).toInt())
+    }
+
+    private fun showBrightnessToast(percent: Int) {
+        statusText.text = "☀️ AMOLED Brightness: $percent%"
+        statusText.setTextColor(getColor(R.color.white))
+        hudOverlay.visibility = View.VISIBLE
+        hudOverlay.alpha = 1f
+
+        brightnessHudRunnable?.let { mainHandler.removeCallbacks(it) }
+        val r = Runnable {
+            hudOverlay.animate().alpha(0f).setDuration(400).withEndAction {
+                statusText.text = "120 FPS • Wire Active"
+                statusText.setTextColor(getColor(R.color.status_green))
+                hudOverlay.alpha = 1f
+            }.start()
+        }
+        brightnessHudRunnable = r
+        mainHandler.postDelayed(r, 1400)
     }
 
     private fun startRadarPulse() {

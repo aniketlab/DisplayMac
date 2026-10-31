@@ -20,7 +20,8 @@ class ConnectionManager(
     private val onConnected: (mode: String) -> Unit,
     private val onDisconnected: () -> Unit,
     private val onVideoFrame: (nalu: ByteArray, ptsUs: Long, isKeyframe: Boolean) -> Unit,
-    private val onAudioFrame: (pcmData: ByteArray) -> Unit
+    private val onAudioFrame: (pcmData: ByteArray) -> Unit,
+    private val onBrightness: ((Float) -> Unit)? = null
 ) {
     companion object {
         private const val TAG = "ConnectionManager"
@@ -184,6 +185,11 @@ class ConnectionManager(
         }
     }
 
+    fun sendBrightness(brightness: Float) {
+        val packet = ProtocolConstants.buildBrightnessPacket(brightness)
+        sendControlPacket(packet)
+    }
+
     private fun readControlStream(socket: Socket) {
         try {
             val dis = DataInputStream(socket.getInputStream())
@@ -203,6 +209,11 @@ class ConnectionManager(
 
                 if (msgType == ProtocolConstants.MSG_SERVER_CONFIG) {
                     Log.i(TAG, "Received ServerConfig confirmation from Mac!")
+                } else if (msgType == ProtocolConstants.MSG_SET_BRIGHTNESS) {
+                    if (payload.size >= 4) {
+                        val brightness = ByteBuffer.wrap(payload).order(ByteOrder.BIG_ENDIAN).float
+                        onBrightness?.invoke(brightness)
+                    }
                 }
             }
         } catch (e: Exception) {
