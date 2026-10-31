@@ -141,10 +141,14 @@ class MainActivity : AppCompatActivity() {
                 statusText.setTextColor(getColor(R.color.status_green))
             },
             onDisconnected = {
-                // Restore Dashboard on disconnect
-                dashboardLayout.visibility = View.VISIBLE
-                dashboardLayout.animate().alpha(1f).setDuration(300).start()
-                hudOverlay.visibility = View.GONE
+                runOnUiThread {
+                    dashboardLayout.bringToFront()
+                    dashboardLayout.alpha = 1f
+                    dashboardLayout.visibility = View.VISIBLE
+                    hudOverlay.visibility = View.GONE
+                    dashStatusTitle.text = "Mac Mini Disconnected"
+                    cardLinkSub.text = "Searching for USB / Wi-Fi..."
+                }
             },
             onVideoFrame = { nalu, ptsUs, isKeyframe ->
                 decoder.decodeNalu(nalu, ptsUs, isKeyframe)

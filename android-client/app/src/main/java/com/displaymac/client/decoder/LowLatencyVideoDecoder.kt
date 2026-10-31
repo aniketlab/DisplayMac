@@ -58,7 +58,7 @@ class LowLatencyVideoDecoder(
         if (!isRunning) return
 
         try {
-            val inputIndex = currentCodec.dequeueInputBuffer(10_000) // 10ms timeout
+            val inputIndex = currentCodec.dequeueInputBuffer(0) // Zero-wait non-blocking
             if (inputIndex >= 0) {
                 val inputBuffer: ByteBuffer? = currentCodec.getInputBuffer(inputIndex)
                 inputBuffer?.clear()
@@ -68,11 +68,10 @@ class LowLatencyVideoDecoder(
                 currentCodec.queueInputBuffer(inputIndex, 0, naluData.size, presentationTimeUs, flags)
             }
 
-            // Drain output buffers directly to Surface
+            // Drain output buffers directly to Surface immediately
             val bufferInfo = MediaCodec.BufferInfo()
             var outputIndex = currentCodec.dequeueOutputBuffer(bufferInfo, 0)
             while (outputIndex >= 0) {
-                // Render immediately to SurfaceView
                 currentCodec.releaseOutputBuffer(outputIndex, true)
                 updateStats()
                 outputIndex = currentCodec.dequeueOutputBuffer(bufferInfo, 0)

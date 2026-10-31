@@ -30,33 +30,42 @@ class ConnectionManager(
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var isRunning = false
+    private var isConnected = false
     private var nsdManager: NsdManager? = null
 
     fun startAutoDiscoveryAndConnect() {
         if (isRunning) return
         isRunning = true
 
-        scope.launch {
-            // Step 1: Check USB connection (USB Tethering default gateway or ADB reverse 127.0.0.1)
-            val usbCandidate = checkUsbCandidates()
-            if (usbCandidate != null) {
-                Log.i(TAG, "⚡ USB Link candidate discovered: $usbCandidate")
-                connectToHost(usbCandidate, "Direct USB-C (5 Gbps)")
-                return@launch
-            }
+        startUsbMonitoring()
 
-            // Step 2: Fallback to Wi-Fi mDNS / Bonjour
+        scope.launch {
             Log.i(TAG, "Discovering Mac mini via Bonjour mDNS...")
             discoverViaMdns()
         }
     }
 
+    private fun startUsbMonitoring() {
+        scope.launch {
+            while (isRunning) {
+                if (!isConnected) {
+                    val usbCandidate = checkUsbCandidates()
+                    if (usbCandidate != null && !isConnected) {
+                        Log.i(TAG, "⚡ USB Link active: $usbCandidate")
+                        connectToHost(usbCandidate, "Direct USB-C (5 Gbps)")
+                    }
+                }
+                delay(1200)
+            }
+        }
+    }
+
     private fun checkUsbCandidates(): String? {
-        val candidates = listOf("192.168.42.129", "192.168.42.1", "127.0.0.1")
+        val candidates = listOf("127.0.0.1", "192.168.42.129", "192.168.42.1")
         for (ip in candidates) {
             try {
                 Socket().use { socket ->
-                    socket.connect(InetSocketAddress(ip, ProtocolConstants.CONTROL_PORT), 250)
+                    socket.connect(InetSocketAddress(ip, ProtocolConstants.CONTROL_PORT), 300)
                     return ip
                 }
             } catch (_: Exception) {
@@ -105,6 +114,7 @@ class ConnectionManager(
     }
 
     fun connectToHost(host: String, connectionMode: String) {
+        if (isConnected) return
         scope.launch {
             try {
                 Log.i(TAG, "Connecting to Control Channel $host:${ProtocolConstants.CONTROL_PORT}...")
@@ -121,6 +131,7 @@ class ConnectionManager(
                 vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 3000)
                 videoSocket = vSocket
 
+                isConnected = true
                 withContext(Dispatchers.Main) {
                     onConnected(connectionMode)
                 }
@@ -210,6 +221,7 @@ class ConnectionManager(
             }
         } catch (e: Exception) {
             Log.d(TAG, "Video stream disconnected: ${e.message}")
+            isConnected = false
             scope.launch(Dispatchers.Main) {
                 onDisconnected()
             }
