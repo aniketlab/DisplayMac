@@ -350,6 +350,13 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         hideSystemUI()
+        if (connectionManager?.isConnected == true) {
+            val holder = surfaceHolderRef ?: videoSurface.holder
+            if (holder.surface.isValid) {
+                ensureDecoderActive(holder)
+                connectionManager?.requestKeyframe()
+            }
+        }
     }
 
     override fun onDestroy() {
