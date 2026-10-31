@@ -256,7 +256,7 @@
                     android:inputType="textUri"
                     android:singleLine="true" />
 
-                <Button
+                <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/connectBtn"
                     android:layout_width="wrap_content"
                     android:layout_height="44dp"
@@ -265,10 +265,10 @@
                     android:text="Connect"
                     android:textAllCaps="false"
                     android:textColor="#FFFFFF"
-                    android:textSize="13sp"
+                    android:textSize="14sp"
                     android:fontFamily="sans-serif-bold"
-                    android:paddingStart="20dp"
-                    android:paddingEnd="20dp" />
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp" />
             </LinearLayout>
         </LinearLayout>
 

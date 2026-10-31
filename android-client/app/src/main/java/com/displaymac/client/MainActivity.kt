@@ -31,6 +31,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manualIpInput: EditText
     private lateinit var connectBtn: Button
     private lateinit var radarIcon: ImageView
+    private lateinit var dashStatusTitle: TextView
+    private lateinit var cardLinkSub: TextView
 
     private lateinit var displayModeManager: DisplayModeManager
     private var videoDecoder: LowLatencyVideoDecoder? = null
@@ -58,6 +60,8 @@ class MainActivity : AppCompatActivity() {
         manualIpInput = findViewById(R.id.manualIpInput)
         connectBtn = findViewById(R.id.connectBtn)
         radarIcon = findViewById(R.id.radarIcon)
+        dashStatusTitle = findViewById(R.id.dashStatusTitle)
+        cardLinkSub = findViewById(R.id.cardLinkSub)
 
         // Lock to 120Hz native refresh rate
         displayModeManager = DisplayModeManager(this)
@@ -70,6 +74,8 @@ class MainActivity : AppCompatActivity() {
         connectBtn.setOnClickListener {
             val ip = manualIpInput.text.toString().trim()
             if (ip.isNotEmpty()) {
+                dashStatusTitle.text = "Connecting to $ip..."
+                cardLinkSub.text = "Connecting to $ip..."
                 connectionManager?.connectToHost(ip, "Direct IP")
             }
         }
