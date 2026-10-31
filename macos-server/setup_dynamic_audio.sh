@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# DisplayMac - Standalone Native Audio Driver Compiler
-# Compiles directly using clang (No Xcode.app or Homebrew needed!)
+# DisplayMac - Native Dynamic Audio Driver Setup
+# Compiles directly using clang (Zero Xcode.app, Homebrew, or external clones needed!)
 # Dynamically exposes the connected tablet (e.g. "Samsung Galaxy Tab S10 Ultra") 
 # in the macOS Sound menu!
 # ==============================================================================
@@ -12,82 +12,32 @@ echo "============================================================"
 echo "  DisplayMac - Dynamic Hardware Audio Driver Setup"
 echo "============================================================"
 
-BUILD_DIR="/tmp/DisplayMacAudioBuild"
-BUNDLE_DIR="$BUILD_DIR/DisplayMacAudio.driver"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DRIVER_SRC="$DIR/Driver/DisplayMacAudio.c"
+BUNDLE_DIR="/tmp/DisplayMacAudio.driver"
 DRIVER_DEST="/Library/Audio/Plug-Ins/HAL/DisplayMacAudio.driver"
 NAME_FILE="/tmp/displaymac_audio_name.txt"
 
-# 1. Clean previous build if any
-rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR"
-
-echo "[1/4] Fetching open-source CoreAudio driver engine..."
-git clone --depth 1 https://github.com/ExistentialAudio/BlackHole.git "$BUILD_DIR/src"
-
-echo "[2/4] Injecting dynamic device-name logic..."
-BLACKHOLE_C=$(find "$BUILD_DIR/src" -name "BlackHole.c" | head -n 1)
-
-if [ -z "$BLACKHOLE_C" ] || [ ! -f "$BLACKHOLE_C" ]; then
-    echo "❌ Error: BlackHole.c not found."
+if [ ! -f "$DRIVER_SRC" ]; then
+    echo "❌ Error: $DRIVER_SRC not found."
     exit 1
 fi
 
-SRC_DIR=$(dirname "$BLACKHOLE_C")
-
-python3 - "$BLACKHOLE_C" << 'EOF'
-import sys
-import re
-
-path = sys.argv[1]
-with open(path, "r") as f:
-    code = f.read()
-
-replacement = """
-static CFStringRef get_device_name(void) {
-    FILE *f = fopen("/tmp/displaymac_audio_name.txt", "r");
-    if (f) {
-        char buf[256];
-        if (fgets(buf, sizeof(buf), f)) {
-            buf[strcspn(buf, "\\r\\n")] = 0;
-            fclose(f);
-            if (strlen(buf) > 0) {
-                return CFStringCreateWithCString(kCFAllocatorDefault, buf, kCFStringEncodingUTF8);
-            }
-        } else {
-            fclose(f);
-        }
-    }
-    return CFSTR("Samsung Galaxy Tab S10 Ultra (DisplayMac)");
-}
-"""
-
-target = "static CFStringRef get_device_name(void) {\n    RETURN_FORMATTED_STRING(kDevice_Name)\n}"
-if target in code:
-    code = code.replace(target, replacement)
-    print("✅ Successfully patched get_device_name via exact match")
-else:
-    code = re.sub(r'static\s+CFStringRef\s+get_device_name\s*\(\s*void\s*\)\s*\{[^}]*\}', replacement, code)
-    print("✅ Successfully patched get_device_name via regex")
-
-with open(path, "w") as f:
-    f.write(code)
-EOF
-
-# Set default tablet name
+# 1. Set initial dynamic tablet name
 echo "Samsung Galaxy Tab S10 Ultra (DisplayMac)" > "$NAME_FILE"
 chmod 666 "$NAME_FILE"
 
-echo "[3/4] Compiling native Apple Silicon driver bundle (Pure clang, zero Xcode needed)..."
+# 2. Compile driver bundle directly using clang
+echo "[1/3] Compiling native Apple Silicon driver bundle..."
+rm -rf "$BUNDLE_DIR"
 mkdir -p "$BUNDLE_DIR/Contents/MacOS"
 
 SDK_PATH=$(xcrun --show-sdk-path)
 
-# Compile directly using Apple Silicon clang with CoreAudio frameworks
 clang -bundle \
     -arch arm64 \
     -isysroot "$SDK_PATH" \
     -O3 \
-    -I "$SRC_DIR" \
     -DkNumber_Of_Channels=2 \
     -DkDriver_Name=\"DisplayMacAudio\" \
     -DkDevice_Name=\"DisplayMacAudio\" \
@@ -95,10 +45,11 @@ clang -bundle \
     -framework CoreAudio \
     -framework CoreFoundation \
     -framework AudioToolbox \
+    -framework Accelerate \
     -o "$BUNDLE_DIR/Contents/MacOS/DisplayMacAudio" \
-    "$BLACKHOLE_C"
+    "$DRIVER_SRC"
 
-# Create driver Info.plist
+# 3. Create driver Info.plist
 cat << 'EOF' > "$BUNDLE_DIR/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -138,21 +89,17 @@ cat << 'EOF' > "$BUNDLE_DIR/Contents/Info.plist"
 </plist>
 EOF
 
-# Ad-hoc sign the bundle
-codesign -f -s - "$BUNDLE_DIR" > /dev/null 2>&1 || true
-
-echo "[4/4] Installing driver to /Library/Audio/Plug-Ins/HAL/..."
+# 4. Install driver to /Library/Audio/Plug-Ins/HAL/
+echo "[2/3] Installing driver to /Library/Audio/Plug-Ins/HAL/..."
 sudo rm -rf "$DRIVER_DEST"
 sudo cp -R "$BUNDLE_DIR" "$DRIVER_DEST"
 sudo chown -R root:wheel "$DRIVER_DEST"
+rm -rf "$BUNDLE_DIR"
 
-# Restart CoreAudio daemon so macOS immediately exposes the driver
-echo "• Reloading macOS CoreAudio daemon..."
+# 5. Reload CoreAudio daemon
+echo "[3/3] Reloading macOS CoreAudio daemon..."
 sudo killall -9 coreaudiod 2>/dev/null || true
 sleep 1
-
-# Cleanup temp build
-rm -rf "$BUILD_DIR"
 
 echo ""
 echo "============================================================"
