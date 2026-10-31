@@ -7,8 +7,7 @@ import com.displaymac.client.protocol.ProtocolConstants
 import kotlin.math.abs
 
 class StylusInputHandler(
-    private val sendControlPacket: (ByteArray) -> Unit,
-    private val onEdgeBrightnessChange: ((Float) -> Unit)? = null
+    private val sendControlPacket: (ByteArray) -> Unit
 ) : View.OnTouchListener, View.OnHoverListener {
 
     private var isStylusActive = false
@@ -18,9 +17,6 @@ class StylusInputHandler(
     private var lastHoverY = -1f
     private var lastHoverTime = 0L
 
-    private var isEdgeSwipe = false
-    private var edgeLastY = 0f
-
     override fun onTouch(view: View, event: MotionEvent): Boolean {
         val width = view.width.toFloat()
         val height = view.height.toFloat()
@@ -29,34 +25,6 @@ class StylusInputHandler(
         val toolType = event.getToolType(0)
         val isStylus = (toolType == MotionEvent.TOOL_TYPE_STYLUS)
         val now = SystemClock.uptimeMillis()
-
-        // Edge-Swipe Brightness Gesture (within left 6% bezel of the 14.6" screen)
-        if (!isStylus && onEdgeBrightnessChange != null) {
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (event.x < width * 0.06f) {
-                        isEdgeSwipe = true
-                        edgeLastY = event.y
-                        return true
-                    }
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (isEdgeSwipe) {
-                        val dy = edgeLastY - event.y
-                        edgeLastY = event.y
-                        val delta = dy / (height * 0.4f)
-                        onEdgeBrightnessChange.invoke(delta)
-                        return true
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (isEdgeSwipe) {
-                        isEdgeSwipe = false
-                        return true
-                    }
-                }
-            }
-        }
 
         // Palm Rejection: When drawing with S-Pen or recently used S-Pen (<300ms), reject accidental palm/finger touches
         if ((isStylusActive || (now - lastStylusTime < 300)) && !isStylus && event.actionMasked != MotionEvent.ACTION_UP) {

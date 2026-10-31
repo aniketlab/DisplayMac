@@ -19,7 +19,6 @@ let package = Package(
             dependencies: [],
             path: "Sources",
             linkerSettings: [
-                .linkedFramework("AppKit"),
                 .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("VideoToolbox"),
                 .linkedFramework("CoreMedia"),

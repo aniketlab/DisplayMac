@@ -18,7 +18,6 @@ object ProtocolConstants {
     const val MSG_PONG: Byte = 0x04
     const val MSG_REQUEST_KEYFRAME: Byte = 0x05
     const val MSG_STYLUS_EVENT: Byte = 0x11
-    const val MSG_SET_BRIGHTNESS: Byte = 0x20
 
     // Stream Frame Types
     const val FRAME_TYPE_KEYFRAME: Byte = 0x01
@@ -67,11 +66,5 @@ object ProtocolConstants {
         payload.putFloat(pressure)
         payload.putFloat(tilt)
         return buildControlMessage(MSG_STYLUS_EVENT, payload.array())
-    }
-
-    fun buildBrightnessPacket(brightness: Float): ByteArray {
-        val payload = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
-        payload.putFloat(brightness)
-        return buildControlMessage(MSG_SET_BRIGHTNESS, payload.array())
     }
 }
