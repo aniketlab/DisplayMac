@@ -17,6 +17,11 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
     public func startCapture(displayID: CGDirectDisplayID, width: Int, height: Int, targetFps: Int = 120) async throws {
         guard !isRunning else { return }
         
+        if !CGPreflightScreenCaptureAccess() {
+            print("[ScreenCapture] Requesting Screen Recording TCC authorization...")
+            _ = CGRequestScreenCaptureAccess()
+        }
+        
         let shareableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let targetDisplay = shareableContent.displays.first(where: { $0.displayID == displayID }) ?? shareableContent.displays.first else {
             throw NSError(domain: "DisplayMac", code: -1, userInfo: [NSLocalizedDescriptionKey: "Target display not found"])

@@ -22,6 +22,7 @@ echo "[2/4] Installing binary to $INSTALL_PATH..."
 sudo mkdir -p /usr/local/bin
 sudo cp "$BINARY_PATH" "$INSTALL_PATH"
 sudo chmod +x "$INSTALL_PATH"
+sudo codesign --force --sign - --identifier "com.displaymac.server" "$INSTALL_PATH"
 
 # 3. Create LaunchAgent plist
 PLIST_DIR="$HOME/Library/LaunchAgents"
