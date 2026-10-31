@@ -15,7 +15,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
     private var stream: SCStream?
     private let videoQueue = DispatchQueue(label: "com.displaymac.capture.video", qos: .userInteractive)
     private let audioQueue = DispatchQueue(label: "com.displaymac.capture.audio", qos: .userInteractive)
-    private var isRunning: Bool = false
+    public private(set) var isRunning: Bool = false
     
     public func startCapture(displayID: CGDirectDisplayID, width: Int, height: Int, targetFps: Int = 120) async throws {
         guard !isRunning else { return }
