@@ -98,7 +98,7 @@ class LowLatencyVideoDecoder(
         frameCount++
         val now = System.currentTimeMillis()
         val elapsed = now - lastFpsTimestamp
-        if (elapsed >= 1000) {
+        if (elapsed >= 500) {
             val fps = (frameCount * 1000f) / elapsed
             onFrameRendered(fps)
             frameCount = 0

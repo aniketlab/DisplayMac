@@ -190,9 +190,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun ensureDecoderActive(holder: SurfaceHolder) {
         if (videoDecoder == null) {
-            val decoder = LowLatencyVideoDecoder(holder.surface) { _ ->
+            val decoder = LowLatencyVideoDecoder(holder.surface) { liveFps ->
                 runOnUiThread {
-                    fpsText.text = "120 Hz"
+                    fpsText.text = String.format(java.util.Locale.US, "%.0f FPS", liveFps)
                 }
             }
             decoder.initDecoder(width = 2960, height = 1848)
