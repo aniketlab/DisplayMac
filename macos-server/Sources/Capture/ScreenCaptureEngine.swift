@@ -34,7 +34,12 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
             try await Task.sleep(nanoseconds: 100_000_000) // 100ms sleep
         }
         
-        guard let displayToCapture = targetDisplay ?? (try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)).displays.first else {
+        var chosenDisplay = targetDisplay
+        if chosenDisplay == nil {
+            let fallbackContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            chosenDisplay = fallbackContent.displays.first
+        }
+        guard let displayToCapture = chosenDisplay else {
             throw NSError(domain: "DisplayMac", code: -1, userInfo: [NSLocalizedDescriptionKey: "Target display not found"])
         }
         
