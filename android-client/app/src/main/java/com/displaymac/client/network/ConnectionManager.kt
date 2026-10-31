@@ -37,10 +37,19 @@ class ConnectionManager(
         if (isRunning) return
         isRunning = true
 
-        startUsbMonitoring()
-
         scope.launch {
-            Log.i(TAG, "Discovering Mac mini via Bonjour mDNS...")
+            // STEP 1: Strict USB Cable Priority Check (Port 7100 on localhost 127.0.0.1)
+            val usbIp = checkUsbCandidates()
+            if (usbIp != null) {
+                Log.i(TAG, "⚡ Direct USB-C Wire Detected! Connecting via USB...")
+                connectToHost(usbIp, "Direct USB-C (5 Gbps)")
+                startUsbMonitoring()
+                return@launch
+            }
+
+            // STEP 2: Fallback to Wi-Fi mDNS only when USB cable is absent
+            startUsbMonitoring()
+            Log.i(TAG, "No USB cable detected. Falling back to Wi-Fi mDNS...")
             discoverViaMdns()
         }
     }
