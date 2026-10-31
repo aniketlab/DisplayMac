@@ -80,6 +80,24 @@ public final class VirtualDisplayManager {
         }
     }
     
+    /// Detects if a physical display (HDMI, Thunderbolt, or built-in screen) is currently active.
+    /// Ensures DisplayMac never conflicts with physical hardware monitors.
+    public func getPhysicalDisplayIDs() -> [CGDirectDisplayID] {
+        var displayCount: UInt32 = 0
+        CGGetActiveDisplayList(0, nil, &displayCount)
+        guard displayCount > 0 else { return [] }
+        
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
+        CGGetActiveDisplayList(displayCount, &displays, &displayCount)
+        
+        return displays.filter { id in
+            if let vID = self.activeDisplayID, id == vID {
+                return false // exclude our virtual display
+            }
+            return true
+        }
+    }
+    
     deinit {
         releaseVirtualDisplay()
     }
