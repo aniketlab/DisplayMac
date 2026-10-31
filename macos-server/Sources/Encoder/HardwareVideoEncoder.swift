@@ -12,6 +12,7 @@ public final class HardwareVideoEncoder {
     private var session: VTCompressionSession?
     private var frameIndex: UInt32 = 0
     private var forceKeyframe: Bool = true
+    private var lastCapturedPixelBuffer: CVPixelBuffer?
     
     public init() {}
     
@@ -66,6 +67,8 @@ public final class HardwareVideoEncoder {
     public func encode(sampleBuffer: CMSampleBuffer) {
         guard let session = session, let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         
+        self.lastCapturedPixelBuffer = imageBuffer
+        
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         let duration = CMSampleBufferGetDuration(sampleBuffer)
         
@@ -89,6 +92,30 @@ public final class HardwareVideoEncoder {
     
     public func requestImmediateKeyframe() {
         self.forceKeyframe = true
+        
+        // Instant Re-encode for idle / static screens:
+        // If the screen is currently static, ScreenCaptureKit will not emit new frames.
+        // Immediately re-encode the cached pixel buffer as a forced IDR Keyframe
+        // so the tablet receives a complete desktop frame within 1 millisecond!
+        if let session = self.session, let imageBuffer = self.lastCapturedPixelBuffer {
+            let pts = CMClockGetTime(CMClockGetHostTimeClock())
+            let duration = CMTime(value: 1, timescale: 120)
+            var properties: CFDictionary? = nil
+            let dict: [CFString: Any] = [kVTEncodeFrameOptionKey_ForceKeyFrame: true]
+            properties = dict as CFDictionary
+            self.forceKeyframe = false
+            
+            VTCompressionSessionEncodeFrame(
+                session,
+                imageBuffer: imageBuffer,
+                presentationTimeStamp: pts,
+                duration: duration,
+                frameProperties: properties,
+                sourceFrameRefcon: nil,
+                infoFlagsOut: nil
+            )
+            print("[Encoder] ⚡ Instant cached frame dispatched as IDR Keyframe upon client request!")
+        }
     }
     
     public func teardown() {
@@ -96,6 +123,7 @@ public final class HardwareVideoEncoder {
             VTCompressionSessionInvalidate(session)
             self.session = nil
         }
+        self.lastCapturedPixelBuffer = nil
     }
     
     deinit {

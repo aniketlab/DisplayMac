@@ -19,11 +19,13 @@ class LowLatencyVideoDecoder(
 
     private var codec: MediaCodec? = null
     private var isRunning = false
+    private var waitingForKeyframe = true
     private var frameCount = 0
     private var lastFpsTimestamp = System.currentTimeMillis()
 
     fun initDecoder(width: Int = 2960, height: Int = 1848) {
         stopDecoder()
+        waitingForKeyframe = true
 
         val decoderName = selectBestLowLatencyCodec(MIME_TYPE)
         Log.i(TAG, "Selected Hardware HEVC Decoder: $decoderName for ${width}x${height}")
@@ -59,6 +61,15 @@ class LowLatencyVideoDecoder(
     fun decodeNalu(naluData: ByteArray, presentationTimeUs: Long, isKeyframe: Boolean) {
         val currentCodec = codec ?: return
         if (!isRunning) return
+
+        // Drop any in-flight P-frames until the first complete IDR Keyframe + Parameter Sets arrive
+        if (waitingForKeyframe) {
+            if (!isKeyframe) {
+                return
+            }
+            waitingForKeyframe = false
+            Log.i(TAG, "⚡ Initial IDR keyframe received! Commencing hardware decoding.")
+        }
 
         try {
             // Immediate 0-wait dequeue for ultra-low latency

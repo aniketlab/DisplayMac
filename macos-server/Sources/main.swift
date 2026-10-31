@@ -142,7 +142,6 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
         AudioManager.shared.restorePreviousOutputDevice()
         AudioManager.shared.restorePhysicalMacAudio()
-        InputInjector.shared.updateActiveDisplay(displayID: nil)
         Task {
             await captureEngine.stopCapture()
         }
@@ -154,6 +153,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self, !self.isStreaming else { return }
             print("[Coordinator] ⏳ Grace period expired. Releasing virtual display...")
+            InputInjector.shared.updateActiveDisplay(displayID: nil)
             self.displayManager.releaseVirtualDisplay()
             print("[Coordinator] ✅ Virtual display removed cleanly. BenQ monitor is primary.")
         }

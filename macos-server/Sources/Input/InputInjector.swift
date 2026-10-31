@@ -37,14 +37,13 @@ public final class InputInjector {
     }
     
     public func handleStylusPacket(_ packet: StylusPacket) {
-        // Dynamically query live display bounds to guarantee 100% coordinate precision
-        var bounds = CGRect(x: originX, y: originY, width: screenWidth, height: screenHeight)
-        if let displayID = activeDisplayID {
-            let liveBounds = CGDisplayBounds(displayID)
-            if liveBounds.width > 0 && liveBounds.height > 0 {
-                bounds = liveBounds
-            }
+        // Only inject touches if active virtual display exists (NEVER touch primary BenQ monitor)
+        guard let displayID = activeDisplayID, displayID != CGMainDisplayID() else {
+            return
         }
+        
+        let bounds = CGDisplayBounds(displayID)
+        guard bounds.width > 0 && bounds.height > 0 else { return }
         
         let globalX = bounds.origin.x + (CGFloat(packet.normalizedX) * bounds.width)
         let globalY = bounds.origin.y + (CGFloat(packet.normalizedY) * bounds.height)

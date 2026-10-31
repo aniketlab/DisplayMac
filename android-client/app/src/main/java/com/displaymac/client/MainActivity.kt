@@ -146,14 +146,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectUsingUsb() {
-        val holder = surfaceHolderRef
-        if (holder == null) {
-            showStatusMessage("Video surface not ready yet. Please wait a second.", isError = true)
-            return
-        }
-
+        val holder = surfaceHolderRef ?: videoSurface.holder
         showLoading("Connecting to Mac via USB Cable (127.0.0.1)...")
-        ensureDecoderActive(holder)
+        if (holder.surface.isValid) {
+            ensureDecoderActive(holder)
+        }
 
         connectionManager?.connectToHost(
             host = "127.0.0.1",
@@ -169,14 +166,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectUsingWifi(ip: String) {
-        val holder = surfaceHolderRef
-        if (holder == null) {
-            showStatusMessage("Video surface not ready yet. Please wait a second.", isError = true)
-            return
-        }
-
+        val holder = surfaceHolderRef ?: videoSurface.holder
         showLoading("Connecting to Mac at $ip over Wi-Fi...")
-        ensureDecoderActive(holder)
+        if (holder.surface.isValid) {
+            ensureDecoderActive(holder)
+        }
 
         connectionManager?.connectToHost(
             host = ip,
@@ -258,9 +252,17 @@ class MainActivity : AppCompatActivity() {
             onConnected = { mode ->
                 hideLoading()
                 
+                // Ensure decoder is active and surface is ready
+                val holder = surfaceHolderRef ?: videoSurface.holder
+                if (holder.surface.isValid) {
+                    ensureDecoderActive(holder)
+                }
+
                 // Start low-latency audio playback to Galaxy Tab AKG quad speakers
                 audioPlayer?.start()
-                videoSurface.visibility = View.VISIBLE
+                
+                // Request immediate keyframe
+                connectionManager?.requestKeyframe()
                 
                 // Hide Dashboard and reveal 120Hz Mac desktop stream
                 dashboardLayout.animate()
@@ -285,7 +287,6 @@ class MainActivity : AppCompatActivity() {
                 dashboardLayout.bringToFront()
                 dashboardLayout.alpha = 1f
                 dashboardLayout.visibility = View.VISIBLE
-                videoSurface.visibility = View.INVISIBLE
                 hudOverlay.visibility = View.GONE
                 hideLoading()
 
