@@ -1,9 +1,16 @@
 package com.displaymac.client
 
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
+import android.animation.ValueAnimator
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.View
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -17,12 +24,18 @@ import com.displaymac.client.network.ConnectionManager
 class MainActivity : AppCompatActivity() {
 
     private lateinit var videoSurface: SurfaceView
+    private lateinit var dashboardLayout: View
+    private lateinit var hudOverlay: View
     private lateinit var statusText: TextView
     private lateinit var fpsText: TextView
+    private lateinit var manualIpInput: EditText
+    private lateinit var connectBtn: Button
+    private lateinit var radarIcon: ImageView
 
     private lateinit var displayModeManager: DisplayModeManager
     private var videoDecoder: LowLatencyVideoDecoder? = null
     private var connectionManager: ConnectionManager? = null
+    private var pulseAnimator: ObjectAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,21 +43,52 @@ class MainActivity : AppCompatActivity() {
         // Keep screen on indefinitely
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Initialize view hierarchy first
+        // Initialize view hierarchy
         setContentView(R.layout.activity_main)
 
-        // Hide system UI safely after decorView is created
+        // Hide system UI safely
         hideSystemUI()
 
+        // Bind Views
         videoSurface = findViewById(R.id.videoSurface)
+        dashboardLayout = findViewById(R.id.dashboardLayout)
+        hudOverlay = findViewById(R.id.hudOverlay)
         statusText = findViewById(R.id.statusText)
         fpsText = findViewById(R.id.fpsText)
+        manualIpInput = findViewById(R.id.manualIpInput)
+        connectBtn = findViewById(R.id.connectBtn)
+        radarIcon = findViewById(R.id.radarIcon)
 
         // Lock to 120Hz native refresh rate
         displayModeManager = DisplayModeManager(this)
         displayModeManager.lockToHighestRefreshRate()
 
+        // Start subtle breathing pulse animation on Radar Icon
+        startRadarPulse()
+
+        // Setup Manual IP button
+        connectBtn.setOnClickListener {
+            val ip = manualIpInput.text.toString().trim()
+            if (ip.isNotEmpty()) {
+                connectionManager?.connectToHost(ip, "Direct IP")
+            }
+        }
+
         setupSurface()
+    }
+
+    private fun startRadarPulse() {
+        pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
+            radarIcon,
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 1.0f, 1.08f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 1.0f, 1.08f),
+            PropertyValuesHolder.ofFloat(View.ALPHA, 0.85f, 1.0f)
+        ).apply {
+            duration = 1400
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            start()
+        }
     }
 
     private fun setupSurface() {
@@ -76,12 +120,25 @@ class MainActivity : AppCompatActivity() {
         val connManager = ConnectionManager(
             context = this,
             onConnected = { mode ->
+                // Smooth transition: Hide dashboard and reveal live 120Hz Mac desktop!
+                dashboardLayout.animate()
+                    .alpha(0f)
+                    .setDuration(400)
+                    .withEndAction { dashboardLayout.visibility = View.GONE }
+                    .start()
+
+                hudOverlay.visibility = View.VISIBLE
+                hudOverlay.alpha = 0f
+                hudOverlay.animate().alpha(1f).setDuration(400).start()
+
                 statusText.text = "Connected ($mode)"
                 statusText.setTextColor(getColor(R.color.status_green))
             },
             onDisconnected = {
-                statusText.text = getString(R.string.status_disconnected)
-                statusText.setTextColor(getColor(R.color.white))
+                // Restore Dashboard on disconnect
+                dashboardLayout.visibility = View.VISIBLE
+                dashboardLayout.animate().alpha(1f).setDuration(300).start()
+                hudOverlay.visibility = View.GONE
             },
             onVideoFrame = { nalu, ptsUs, isKeyframe ->
                 decoder.decodeNalu(nalu, ptsUs, isKeyframe)
@@ -114,6 +171,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        pulseAnimator?.cancel()
         videoDecoder?.stopDecoder()
         connectionManager?.stop()
     }
