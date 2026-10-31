@@ -4,6 +4,7 @@ import CoreMedia
 
 public protocol NetworkServerDelegate: AnyObject {
     func networkServer(_ server: NetworkServer, didConnectClient hello: ClientHello)
+    func networkServerDidDisconnectClient(_ server: NetworkServer)
     func networkServerDidRequestKeyframe(_ server: NetworkServer)
 }
 
@@ -87,9 +88,18 @@ public final class NetworkServer {
         self.controlConnection = connection
         
         connection.stateUpdateHandler = { [weak self] state in
-            if case .failed(let error) = state {
+            guard let self = self else { return }
+            switch state {
+            case .failed(let error):
                 print("[NetworkServer] Control connection failed: \(error)")
-                self?.controlConnection = nil
+                self.controlConnection = nil
+                self.delegate?.networkServerDidDisconnectClient(self)
+            case .cancelled:
+                print("[NetworkServer] Control connection closed.")
+                self.controlConnection = nil
+                self.delegate?.networkServerDidDisconnectClient(self)
+            default:
+                break
             }
         }
         

@@ -22,7 +22,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         ============================================================
            DisplayMac Server ⚡ Native 120Hz Apple Silicon Host
         ============================================================
-        [Host] Initializing subsystems...
+        [Host] Initializing network listeners...
         """)
         
         // Start TCP/Bonjour Network Server
@@ -33,31 +33,31 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
             exit(1)
         }
         
-        // Setup initial Virtual Display (2960x1848 @ 120Hz)
-        _ = displayManager.setupVirtualDisplay(width: 2960, height: 1848, refreshRate: 120)
-        InputInjector.shared.updateScreenBounds(width: 2960, height: 1848)
+        let ips = getLocalIPs()
+        let ipList = ips.isEmpty ? "127.0.0.1" : ips.joined(separator: " or ")
         
         print("""
-        [Host] Ready & Listening!
-        • Control Port: \(ProtocolConstants.controlPort) (mDNS: \(ProtocolConstants.bonjourServiceType))
-        • Video Port:   \(ProtocolConstants.videoPort)
-        • Resolution:   2960x1848 @ 120Hz (16:10 Aspect Ratio)
-        • USB Cable:    Plug in USB-C cable for ultra-low-latency 5 Gbps link.
-        • Wi-Fi:        Connect both devices to the same local network.
+        [Host] 🟢 Ready & Listening!
+        • Mac IP Address(es): \(ipList)
+        • Control Port:       \(ProtocolConstants.controlPort)
+        • Video Port:         \(ProtocolConstants.videoPort)
+        • Headless Safeguard: Virtual display will spawn ONLY after tablet connects!
+                              (Your physical BenQ monitor will NOT be affected)
         
-        Waiting for DisplayMacClient on Samsung Galaxy Tab...
+        👉 Enter this IP on your tablet: \(ips.first ?? "127.0.0.1")
+        Waiting for DisplayMacClient connection...
         """)
     }
     
     // MARK: - NetworkServerDelegate
     func networkServer(_ server: NetworkServer, didConnectClient hello: ClientHello) {
-        print("\n[Coordinator] Handshake with Client: \(hello.displayWidth)x\(hello.displayHeight) @ \(hello.maxRefreshRate)Hz")
+        print("\n[Coordinator] ⚡ Tablet Connected! Handshake: \(hello.displayWidth)x\(hello.displayHeight) @ \(hello.maxRefreshRate)Hz")
         
         let targetWidth = Int(hello.displayWidth)
         let targetHeight = Int(hello.displayHeight)
         let targetFps = Int(hello.maxRefreshRate)
         
-        // Reconfigure virtual display to match client exact resolution
+        // Spawn virtual display matching tablet exact resolution
         _ = displayManager.setupVirtualDisplay(width: targetWidth, height: targetHeight, refreshRate: targetFps)
         InputInjector.shared.updateScreenBounds(width: CGFloat(targetWidth), height: CGFloat(targetHeight))
         
@@ -87,6 +87,16 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         }
     }
     
+    func networkServerDidDisconnectClient(_ server: NetworkServer) {
+        print("\n[Coordinator] 🔌 Client disconnected. Releasing virtual display...")
+        Task {
+            await captureEngine.stopCapture()
+        }
+        displayManager.releaseVirtualDisplay()
+        isStreaming = false
+        print("[Coordinator] ✅ Virtual display removed. BenQ monitor is now primary and clean.")
+    }
+    
     func networkServerDidRequestKeyframe(_ server: NetworkServer) {
         videoEncoder.requestImmediateKeyframe()
     }
@@ -109,6 +119,32 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
             lastStatsTime = now
         }
     }
+}
+
+// Local IP Address Helper
+func getLocalIPs() -> [String] {
+    var addresses = [String]()
+    var ifaddr: UnsafeMutablePointer<ifaddrs>?
+    guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else { return [] }
+    defer { freeifaddrs(ifaddr) }
+    
+    for ptr in sequence(first: firstAddr, next: { $0.pointee.ifa_next }) {
+        let flags = Int32(ptr.pointee.ifa_flags)
+        let addr = ptr.pointee.ifa_addr.pointee
+        if (flags & (IFF_UP|IFF_RUNNING|IFF_LOOPBACK)) == (IFF_UP|IFF_RUNNING) {
+            if addr.sa_family == UInt8(AF_INET) {
+                var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                if getnameinfo(ptr.pointee.ifa_addr, socklen_t(addr.sa_len), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST) == 0 {
+                    let name = String(cString: hostname)
+                    let ifName = String(cString: ptr.pointee.ifa_name)
+                    if ifName.hasPrefix("en") || ifName.hasPrefix("bridge") {
+                        addresses.append("\(name) (\(ifName))")
+                    }
+                }
+            }
+        }
+    }
+    return addresses
 }
 
 // Global Signal Handling for Graceful Shutdown
