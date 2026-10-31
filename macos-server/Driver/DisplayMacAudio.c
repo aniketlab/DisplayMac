@@ -2269,7 +2269,6 @@ static OSStatus	BlackHole_IsDevicePropertySettable(AudioServerPlugInDriverRef in
 		case kAudioObjectPropertyBaseClass:
 		case kAudioObjectPropertyClass:
 		case kAudioObjectPropertyOwner:
-		case kAudioObjectPropertyName:
 		case kAudioObjectPropertyManufacturer:
 		case kAudioObjectPropertyOwnedObjects:
 		case kAudioDevicePropertyDeviceUID:
