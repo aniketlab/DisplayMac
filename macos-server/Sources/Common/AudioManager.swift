@@ -10,9 +10,39 @@ public final class AudioManager {
     private var audioCallback: ((Data) -> Void)?
     private var isCapturing = false
     
+    public var isClientConnected = false
     private let nameFilePath = "/tmp/displaymac_audio_name.txt"
+    private let activeFilePath = "/tmp/displaymac_audio_active.txt"
     
     private init() {}
+    
+    /// Updates the active connection state of the tablet audio device
+    public func setActive(_ active: Bool) {
+        self.isClientConnected = active
+        let val = active ? "1" : "0"
+        try? val.write(toFile: activeFilePath, atomically: true, encoding: .utf8)
+    }
+    
+    /// Real-time Silence Guard: Intercepts accidental selection of DisplayMac Audio while disconnected
+    /// and immediately snaps default sound back to BenQ monitor or Mac mini speakers in 0ms!
+    public func startSilenceGuard() {
+        var propAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propAddress,
+            DispatchQueue.main
+        ) { [weak self] _, _ in
+            guard let self = self else { return }
+            if !self.isClientConnected {
+                self.restorePhysicalMacAudio()
+            }
+        }
+        print("[Audio] 🛡️ Real-time Silence Guard active (prevents accidental offline audio selection).")
+    }
     
     /// Sets the dynamic tablet model name (e.g. "Samsung Galaxy Tab S10 Ultra (DisplayMac)" or "DisplayMac Audio")
     public func setDynamicDeviceName(_ name: String) {

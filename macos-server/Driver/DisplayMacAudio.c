@@ -476,6 +476,19 @@ static CFStringRef get_device_name(void) {
     }
     return CFStringCreateWithCString(NULL, "DisplayMac Audio", kCFStringEncodingUTF8);
 }
+
+static inline Boolean is_displaymac_audio_active(void) {
+    FILE *f = fopen("/tmp/displaymac_audio_active.txt", "r");
+    if (f) {
+        int active = 0;
+        if (fscanf(f, "%d", &active) == 1) {
+            fclose(f);
+            return (active == 1);
+        }
+        fclose(f);
+    }
+    return false;
+}
 static CFStringRef get_device2_uid(void)      { RETURN_FORMATTED_STRING(kDevice2_UID) }
 static CFStringRef get_device2_name(void)     { RETURN_FORMATTED_STRING(kDevice2_Name) }
 static CFStringRef get_device_model_uid(void) { RETURN_FORMATTED_STRING(kDevice_ModelUID) }
@@ -2667,22 +2680,9 @@ static OSStatus	BlackHole_GetDevicePropertyData(AudioServerPlugInDriverRef inDri
             break;
 
 		case kAudioDevicePropertyDeviceCanBeDefaultDevice:
-			//	This property returns whether or not the device wants to be able to be the
-			//	default device for content. This is the device that iTunes and QuickTime
-			//	will use to play their content on and FaceTime will use as it's microhphone.
-			//	Nearly all devices should allow for this.
-			FailWithAction(inDataSize < sizeof(UInt32), theAnswer = kAudioHardwareBadPropertySizeError, Done, "BlackHole_GetDevicePropertyData: not enough space for the return value of kAudioDevicePropertyDeviceCanBeDefaultDevice for the device");
-			*((UInt32*)outData) = kCanBeDefaultDevice;
-			*outDataSize = sizeof(UInt32);
-			break;
-
 		case kAudioDevicePropertyDeviceCanBeDefaultSystemDevice:
-			//	This property returns whether or not the device wants to be the system
-			//	default device. This is the device that is used to play interface sounds and
-			//	other incidental or UI-related sounds on. Most devices should allow this
-			//	although devices with lots of latency may not want to.
-			FailWithAction(inDataSize < sizeof(UInt32), theAnswer = kAudioHardwareBadPropertySizeError, Done, "BlackHole_GetDevicePropertyData: not enough space for the return value of kAudioDevicePropertyDeviceCanBeDefaultSystemDevice for the device");
-			*((UInt32*)outData) = kCanBeDefaultSystemDevice;
+			FailWithAction(inDataSize < sizeof(UInt32), theAnswer = kAudioHardwareBadPropertySizeError, Done, "BlackHole_GetDevicePropertyData: not enough space for the return value of CanBeDefaultDevice for the device");
+			*((UInt32*)outData) = is_displaymac_audio_active() ? 1 : 0;
 			*outDataSize = sizeof(UInt32);
 			break;
 

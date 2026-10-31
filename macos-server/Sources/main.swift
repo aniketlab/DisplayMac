@@ -40,9 +40,11 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Start automatic USB-C cable bridge watchdog (auto-forwards 7100, 7101, 7102 whenever tablet is plugged)
         USBLinkManager.shared.startAutoBridge()
         
-        // Audio Safeguards: Neutral default device name + restore Mac physical speakers/BenQ
-        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
+        // Audio Safeguards: Neutral offline state + restore physical speakers/BenQ + Silence Guard
+        AudioManager.shared.setActive(false)
+        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio (Offline)")
         AudioManager.shared.restorePhysicalMacAudio()
+        AudioManager.shared.startSilenceGuard()
         
         // Verify Accessibility permissions for S-Pen and Mouse injection
         checkAccessibilityPermissions()
@@ -98,7 +100,8 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Setup Hardware HEVC encoder with medium-optimized bitrate
         _ = videoEncoder.setupSession(width: targetWidth, height: targetHeight, fps: targetFps, bitrateMbps: targetBitrateMbps)
         
-        // Save active physical audio device (BenQ monitor or Mac mini speakers)
+        // Activate Tablet Audio & save active physical audio device (BenQ monitor or Mac mini speakers)
+        AudioManager.shared.setActive(true)
         AudioManager.shared.saveCurrentOutputDevice()
         
         // Smart Dynamic Audio Naming based on connected device handshake
@@ -136,6 +139,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
         print("\n[Coordinator] 🔌 Client disconnected. Pausing capture...")
+        AudioManager.shared.setActive(false)
         AudioManager.shared.stopCapturing()
         AudioManager.shared.setDynamicDeviceName("DisplayMac Audio (Offline)")
         AudioManager.shared.restorePreviousOutputDevice()
