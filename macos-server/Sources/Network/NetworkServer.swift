@@ -19,14 +19,34 @@ public final class NetworkServer {
     
     private let serverQueue = DispatchQueue(label: "com.displaymac.network.queue", qos: .userInteractive)
     private var frameSequenceNumber: UInt32 = 0
+    private var isSendingFrame = false
     
     public init() {}
     
+    public var isClientLoopback: Bool {
+        guard let endpoint = controlConnection?.endpoint else { return false }
+        switch endpoint {
+        case .hostPort(let host, _):
+            let hostStr = "\(host)"
+            return hostStr == "127.0.0.1" || hostStr == "::1" || hostStr.contains("127.0.0.1")
+        default:
+            return false
+        }
+    }
+    
+    private static func createTcpParameters() -> NWParameters {
+        let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.noDelay = true
+        tcpOptions.enableKeepalive = true
+        tcpOptions.keepaliveIdle = 2
+        let params = NWParameters(tls: nil, tcp: tcpOptions)
+        params.allowLocalEndpointReuse = true
+        return params
+    }
+    
     public func start(controlPort: UInt16 = ProtocolConstants.controlPort, videoPort: UInt16 = ProtocolConstants.videoPort) throws {
         // Control Channel Listener
-        let tcpParams = NWParameters.tcp
-        tcpParams.allowLocalEndpointReuse = true
-        
+        let tcpParams = NetworkServer.createTcpParameters()
         let cListener = try NWListener(using: tcpParams, on: NWEndpoint.Port(rawValue: controlPort)!)
         
         // Broadcast Bonjour service for zero-config Wi-Fi discovery
@@ -51,8 +71,7 @@ public final class NetworkServer {
         self.controlListener = cListener
         
         // Video Channel Listener
-        let vParams = NWParameters.tcp
-        vParams.allowLocalEndpointReuse = true
+        let vParams = NetworkServer.createTcpParameters()
         let vListener = try NWListener(using: vParams, on: NWEndpoint.Port(rawValue: videoPort)!)
         
         vListener.stateUpdateHandler = { state in
@@ -209,13 +228,34 @@ public final class NetworkServer {
         self.videoConnection?.cancel()
         self.videoConnection = connection
         
+        connection.stateUpdateHandler = { [weak self] state in
+            guard let self = self else { return }
+            switch state {
+            case .failed(let error):
+                print("[NetworkServer] Video connection failed: \(error)")
+                self.videoConnection = nil
+            case .cancelled:
+                print("[NetworkServer] Video connection closed.")
+                self.videoConnection = nil
+            default:
+                break
+            }
+        }
+        
         connection.start(queue: serverQueue)
     }
     
     public func broadcastVideoFrame(naluData: Data, isKeyframe: Bool, pts: CMTime) {
-        guard let connection = videoConnection else { return }
+        guard let connection = videoConnection, connection.state == .ready else { return }
         
-        // Construct 16-byte Video Header:
+        // Zero-lag in-flight frame guard:
+        // If previous frame is still in transit over the TCP socket, drop intermediate P-frames
+        // so network queue latency NEVER accumulates!
+        if isSendingFrame && !isKeyframe {
+            return
+        }
+        
+        // Construct 20-byte Video Header:
         // Magic(2) + FrameType(1) + Codec(1) + SeqNum(4) + PTS(8) + PayloadLength(4)
         var packet = Data(capacity: 20 + naluData.count)
         
@@ -238,6 +278,9 @@ public final class NetworkServer {
         
         packet.append(naluData)
         
-        connection.send(content: packet, completion: .idempotent)
+        isSendingFrame = true
+        connection.send(content: packet, completion: .contentProcessed({ [weak self] _ in
+            self?.isSendingFrame = false
+        }))
     }
 }

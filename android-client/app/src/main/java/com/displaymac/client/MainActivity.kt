@@ -8,11 +8,13 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatButton
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -28,59 +30,264 @@ class MainActivity : AppCompatActivity() {
     private lateinit var hudOverlay: View
     private lateinit var statusText: TextView
     private lateinit var fpsText: TextView
-    private lateinit var manualIpInput: EditText
-    private lateinit var connectBtn: Button
+    private lateinit var btnDisconnect: AppCompatButton
+
     private lateinit var radarIcon: ImageView
     private lateinit var dashStatusTitle: TextView
-    private lateinit var cardLinkSub: TextView
+    private lateinit var dashStatusSub: TextView
+    private lateinit var btnConnectUsb: AppCompatButton
+    private lateinit var btnConnectWifi: AppCompatButton
+    private lateinit var manualIpInput: EditText
+    private lateinit var tvWifiDiscoveryStatus: TextView
+    private lateinit var searchProgress: ProgressBar
+    private lateinit var tvStatusMessage: TextView
 
     private lateinit var displayModeManager: DisplayModeManager
     private var videoDecoder: LowLatencyVideoDecoder? = null
     private var connectionManager: ConnectionManager? = null
     private var pulseAnimator: ObjectAnimator? = null
+    private var surfaceHolderRef: SurfaceHolder? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Keep screen on indefinitely
+        // Keep screen active indefinitely
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Initialize view hierarchy
+        // Inflate view hierarchy
         setContentView(R.layout.activity_main)
 
-        // Hide system UI safely
+        // Hide system status and navigation bars safely
         hideSystemUI()
 
-        // Bind Views
+        // Bind all UI Views
+        bindViews()
+
+        // Lock to Samsung Galaxy Tab S10 Ultra 120Hz native refresh rate
+        displayModeManager = DisplayModeManager(this)
+        displayModeManager.lockToHighestRefreshRate()
+
+        // Setup subtle breathing pulse animation on Radar Icon
+        startRadarPulse()
+
+        // Register Hardware Back Navigation / Gesture Handler
+        setupBackNavigation()
+
+        // Wire Action Buttons
+        setupActionButtons()
+
+        // Prepare SurfaceView
+        setupSurface()
+    }
+
+    private fun bindViews() {
         videoSurface = findViewById(R.id.videoSurface)
         dashboardLayout = findViewById(R.id.dashboardLayout)
         hudOverlay = findViewById(R.id.hudOverlay)
         statusText = findViewById(R.id.statusText)
         fpsText = findViewById(R.id.fpsText)
-        manualIpInput = findViewById(R.id.manualIpInput)
-        connectBtn = findViewById(R.id.connectBtn)
+        btnDisconnect = findViewById(R.id.btnDisconnect)
+
         radarIcon = findViewById(R.id.radarIcon)
         dashStatusTitle = findViewById(R.id.dashStatusTitle)
-        cardLinkSub = findViewById(R.id.cardLinkSub)
+        dashStatusSub = findViewById(R.id.dashStatusSub)
+        btnConnectUsb = findViewById(R.id.btnConnectUsb)
+        btnConnectWifi = findViewById(R.id.btnConnectWifi)
+        manualIpInput = findViewById(R.id.manualIpInput)
+        tvWifiDiscoveryStatus = findViewById(R.id.tvWifiDiscoveryStatus)
+        searchProgress = findViewById(R.id.searchProgress)
+        tvStatusMessage = findViewById(R.id.tvStatusMessage)
+    }
 
-        // Lock to 120Hz native refresh rate
-        displayModeManager = DisplayModeManager(this)
-        displayModeManager.lockToHighestRefreshRate()
-
-        // Start subtle breathing pulse animation on Radar Icon
-        startRadarPulse()
-
-        // Setup Manual IP button
-        connectBtn.setOnClickListener {
-            val ip = manualIpInput.text.toString().trim()
-            if (ip.isNotEmpty()) {
-                dashStatusTitle.text = "Connecting to $ip..."
-                cardLinkSub.text = "Connecting to $ip..."
-                connectionManager?.connectToHost(ip, "Direct IP")
+    private fun setupBackNavigation() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (connectionManager?.isConnected == true) {
+                    // If streaming, back button immediately disconnects and returns to dashboard
+                    connectionManager?.disconnect()
+                } else {
+                    // On dashboard, minimize app normally
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
             }
+        })
+    }
+
+    private fun setupActionButtons() {
+        // 1. USB-C Cable Connection Button
+        btnConnectUsb.setOnClickListener {
+            connectUsingUsb()
         }
 
-        setupSurface()
+        // 2. Wi-Fi Wireless Connection Button
+        btnConnectWifi.setOnClickListener {
+            val ip = manualIpInput.text.toString().trim()
+            if (ip.isEmpty()) {
+                showStatusMessage("⚠️ Please enter Mac mini IP address", isError = true)
+                return@setOnClickListener
+            }
+            connectUsingWifi(ip)
+        }
+
+        // 3. Floating HUD Disconnect Button
+        btnDisconnect.setOnClickListener {
+            connectionManager?.disconnect()
+        }
+    }
+
+    private fun connectUsingUsb() {
+        val holder = surfaceHolderRef
+        if (holder == null) {
+            showStatusMessage("Video surface not ready yet. Please wait a second.", isError = true)
+            return
+        }
+
+        showLoading("Connecting to Mac via USB Cable (127.0.0.1)...")
+        ensureDecoderActive(holder)
+
+        connectionManager?.connectToHost(
+            host = "127.0.0.1",
+            connectionMode = "USB 5 Gbps",
+            onError = { error ->
+                hideLoading()
+                showStatusMessage(
+                    "⚠️ USB Cable Connection Failed!\n1. Plug USB-C cable between Mac and Tablet.\n2. Run './setup_usb.sh' in macos-server on Mac.\n3. Verify Samsung Auto Blocker is OFF.",
+                    isError = true
+                )
+            }
+        )
+    }
+
+    private fun connectUsingWifi(ip: String) {
+        val holder = surfaceHolderRef
+        if (holder == null) {
+            showStatusMessage("Video surface not ready yet. Please wait a second.", isError = true)
+            return
+        }
+
+        showLoading("Connecting to Mac at $ip over Wi-Fi...")
+        ensureDecoderActive(holder)
+
+        connectionManager?.connectToHost(
+            host = ip,
+            connectionMode = "Wi-Fi (Wireless)",
+            onError = { error ->
+                hideLoading()
+                showStatusMessage(
+                    "⚠️ Wi-Fi Connection Failed to $ip!\n1. Make sure Mac DisplayMacServer is running.\n2. Check that both Mac and Tablet are on the same Wi-Fi network.",
+                    isError = true
+                )
+            }
+        )
+    }
+
+    private fun ensureDecoderActive(holder: SurfaceHolder) {
+        if (videoDecoder == null) {
+            val decoder = LowLatencyVideoDecoder(holder.surface) { currentFps ->
+                runOnUiThread {
+                    fpsText.text = String.format("%.0f FPS", currentFps)
+                }
+            }
+            decoder.initDecoder(width = 2960, height = 1848)
+            this.videoDecoder = decoder
+        }
+    }
+
+    private fun showLoading(message: String) {
+        searchProgress.visibility = View.VISIBLE
+        tvStatusMessage.visibility = View.VISIBLE
+        tvStatusMessage.text = message
+        tvStatusMessage.setTextColor(getColor(R.color.status_cyan))
+        btnConnectUsb.isEnabled = false
+        btnConnectWifi.isEnabled = false
+    }
+
+    private fun hideLoading() {
+        searchProgress.visibility = View.GONE
+        btnConnectUsb.isEnabled = true
+        btnConnectWifi.isEnabled = true
+    }
+
+    private fun showStatusMessage(message: String, isError: Boolean) {
+        tvStatusMessage.visibility = View.VISIBLE
+        tvStatusMessage.text = message
+        tvStatusMessage.setTextColor(if (isError) getColor(R.color.status_red) else getColor(R.color.status_cyan))
+    }
+
+    private fun setupSurface() {
+        videoSurface.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                surfaceHolderRef = holder
+                initPipeline(holder)
+            }
+
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                surfaceHolderRef = null
+                videoDecoder?.stopDecoder()
+                videoDecoder = null
+                connectionManager?.disconnect()
+            }
+        })
+    }
+
+    private fun initPipeline(holder: SurfaceHolder) {
+        // Initialize Connection Manager
+        val connManager = ConnectionManager(
+            context = this,
+            onConnected = { mode ->
+                hideLoading()
+                
+                // Hide Dashboard and reveal 120Hz Mac desktop stream
+                dashboardLayout.animate()
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction { dashboardLayout.visibility = View.GONE }
+                    .start()
+
+                hudOverlay.visibility = View.VISIBLE
+                hudOverlay.alpha = 0f
+                hudOverlay.animate().alpha(1f).setDuration(300).start()
+
+                statusText.text = "Connected ($mode)"
+                statusText.setTextColor(getColor(R.color.status_green))
+            },
+            onDisconnected = {
+                // Return to Dashboard cleanly
+                dashboardLayout.bringToFront()
+                dashboardLayout.alpha = 1f
+                dashboardLayout.visibility = View.VISIBLE
+                hudOverlay.visibility = View.GONE
+                hideLoading()
+
+                // Release decoder session to ensure fresh keyframe on next connect
+                videoDecoder?.stopDecoder()
+                videoDecoder = null
+
+                showStatusMessage("Session disconnected. Select USB or Wi-Fi to reconnect.", isError = false)
+            },
+            onVideoFrame = { nalu, ptsUs, isKeyframe ->
+                videoDecoder?.decodeNalu(nalu, ptsUs, isKeyframe)
+            }
+        )
+        this.connectionManager = connManager
+
+        // Attach S-Pen Stylus & Multi-Touch Input Handler
+        val stylusHandler = StylusInputHandler { controlPacket ->
+            connManager.sendControlPacket(controlPacket)
+        }
+        videoSurface.setOnTouchListener(stylusHandler)
+        videoSurface.setOnHoverListener(stylusHandler)
+
+        // Start Background Bonjour mDNS Discovery (Discovers Mac IP without auto-connecting)
+        connManager.startMdnsDiscovery { discoveredIp ->
+            if (manualIpInput.text.isNullOrEmpty()) {
+                manualIpInput.setText(discoveredIp)
+            }
+            tvWifiDiscoveryStatus.text = "• Both devices on same Wi-Fi router\n• ✅ Discovered Mac: $discoveredIp\n• Tap 'Connect via Wi-Fi' below"
+        }
     }
 
     private fun startRadarPulse() {
@@ -95,76 +302,6 @@ class MainActivity : AppCompatActivity() {
             repeatMode = ValueAnimator.REVERSE
             start()
         }
-    }
-
-    private fun setupSurface() {
-        videoSurface.holder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: SurfaceHolder) {
-                initPipeline(holder)
-            }
-
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-
-            override fun surfaceDestroyed(holder: SurfaceHolder) {
-                videoDecoder?.stopDecoder()
-                connectionManager?.stop()
-            }
-        })
-    }
-
-    private fun initPipeline(holder: SurfaceHolder) {
-        // 1. Initialize Hardware Low-Latency Decoder
-        val decoder = LowLatencyVideoDecoder(holder.surface) { currentFps ->
-            runOnUiThread {
-                fpsText.text = String.format("%.0f FPS", currentFps)
-            }
-        }
-        decoder.initDecoder(width = 2960, height = 1848)
-        this.videoDecoder = decoder
-
-        // 2. Setup Connection Manager
-        val connManager = ConnectionManager(
-            context = this,
-            onConnected = { mode ->
-                // Smooth transition: Hide dashboard and reveal live 120Hz Mac desktop!
-                dashboardLayout.animate()
-                    .alpha(0f)
-                    .setDuration(400)
-                    .withEndAction { dashboardLayout.visibility = View.GONE }
-                    .start()
-
-                hudOverlay.visibility = View.VISIBLE
-                hudOverlay.alpha = 0f
-                hudOverlay.animate().alpha(1f).setDuration(400).start()
-
-                statusText.text = "Connected ($mode)"
-                statusText.setTextColor(getColor(R.color.status_green))
-            },
-            onDisconnected = {
-                runOnUiThread {
-                    dashboardLayout.bringToFront()
-                    dashboardLayout.alpha = 1f
-                    dashboardLayout.visibility = View.VISIBLE
-                    hudOverlay.visibility = View.GONE
-                    dashStatusTitle.text = "Mac Mini Disconnected"
-                    cardLinkSub.text = "Searching for USB / Wi-Fi..."
-                }
-            },
-            onVideoFrame = { nalu, ptsUs, isKeyframe ->
-                decoder.decodeNalu(nalu, ptsUs, isKeyframe)
-            }
-        )
-        this.connectionManager = connManager
-
-        // 3. Attach S-Pen & Multi-touch Input Handler
-        val stylusHandler = StylusInputHandler { controlPacket ->
-            connManager.sendControlPacket(controlPacket)
-        }
-        videoSurface.setOnTouchListener(stylusHandler)
-        videoSurface.setOnHoverListener(stylusHandler)
-
-        // 4. Start Auto Discovery (USB Priority -> Wi-Fi mDNS)
-        connManager.startAutoDiscoveryAndConnect()
     }
 
     private fun hideSystemUI() {
@@ -183,6 +320,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         pulseAnimator?.cancel()
         videoDecoder?.stopDecoder()
-        connectionManager?.stop()
+        videoDecoder = null
+        connectionManager?.shutdown()
     }
 }

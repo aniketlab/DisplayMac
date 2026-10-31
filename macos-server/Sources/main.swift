@@ -57,6 +57,10 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let targetHeight = Int(hello.displayHeight)
         let targetFps = Int(hello.maxRefreshRate)
         
+        let isUsb = server.isClientLoopback
+        let targetBitrateMbps = isUsb ? 85 : 40
+        print("[Coordinator] 🔗 Connection Link: \(isUsb ? "⚡ USB-C Direct Cable (5 Gbps | 85 Mbps)" : "📶 Wi-Fi Wireless (40 Mbps)")")
+        
         // Spawn virtual display matching tablet exact resolution
         _ = displayManager.setupVirtualDisplay(width: targetWidth, height: targetHeight, refreshRate: targetFps)
         InputInjector.shared.updateScreenBounds(width: CGFloat(targetWidth), height: CGFloat(targetHeight))
@@ -67,12 +71,12 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
             activeFps: UInt8(targetFps),
             streamWidth: UInt32(targetWidth),
             streamHeight: UInt32(targetHeight),
-            targetBitrateKbps: 80_000 // 80 Mbps high fidelity
+            targetBitrateKbps: UInt32(targetBitrateMbps * 1000)
         )
         server.sendServerConfig(config)
         
-        // Setup Hardware HEVC encoder
-        _ = videoEncoder.setupSession(width: targetWidth, height: targetHeight, fps: targetFps, bitrateMbps: 80)
+        // Setup Hardware HEVC encoder with medium-optimized bitrate
+        _ = videoEncoder.setupSession(width: targetWidth, height: targetHeight, fps: targetFps, bitrateMbps: targetBitrateMbps)
         
         // Launch ScreenCaptureKit pipeline
         Task {

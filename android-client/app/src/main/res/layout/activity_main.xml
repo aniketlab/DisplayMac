@@ -11,17 +11,17 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Professional Dashboard UI (Visible while waiting for Mac connection) -->
+    <!-- Professional Dashboard UI (Visible when not streaming) -->
     <LinearLayout
         android:id="@+id/dashboardLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="#070A0F"
-        android:padding="32dp"
+        android:padding="28dp"
         android:gravity="center_horizontal">
 
-        <!-- Header -->
+        <!-- Top Header Bar -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
@@ -78,210 +78,199 @@
                 android:fontFamily="sans-serif-medium" />
         </RelativeLayout>
 
-        <!-- Center Scanning Section -->
-        <LinearLayout
+        <!-- Center Connection Control Area -->
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:layout_marginTop="16dp">
+            android:fillViewport="true">
 
-            <ImageView
-                android:id="@+id/radarIcon"
-                android:layout_width="100dp"
-                android:layout_height="100dp"
-                android:src="@drawable/ic_mac_mini" />
-
-            <ProgressBar
-                android:id="@+id/searchProgress"
-                style="?android:attr/progressBarStyleSmall"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginTop="20dp"
-                android:indeterminateTint="#38BDF8" />
-
-            <TextView
-                android:id="@+id/dashStatusTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Waiting for Mac mini M4..."
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:fontFamily="sans-serif-bold" />
-
-            <TextView
-                android:id="@+id/dashStatusSub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Plug in USB-C cable for 0ms lag, or connect both devices to the same Wi-Fi."
-                android:textColor="#64748B"
-                android:textSize="13sp" />
-
-            <!-- Specs & Cards Row -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="32dp">
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp">
 
-                <!-- Card 1: Display -->
-                <LinearLayout
-                    android:layout_width="200dp"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/card_glass_bg"
-                    android:orientation="vertical"
-                    android:padding="16dp"
-                    android:layout_marginEnd="16dp">
+                <ImageView
+                    android:id="@+id/radarIcon"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:src="@drawable/ic_mac_mini" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="TARGET DISPLAY"
-                        android:textColor="#475569"
-                        android:textSize="10sp"
-                        android:fontFamily="sans-serif-bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="2960 × 1848"
-                        android:textColor="#FFFFFF"
-                        android:textSize="16sp"
-                        android:fontFamily="sans-serif-bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="120 FPS ProMotion"
-                        android:textColor="#34D399"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <!-- Card 2: Link -->
-                <LinearLayout
-                    android:layout_width="200dp"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/card_glass_bg"
-                    android:orientation="vertical"
-                    android:padding="16dp"
-                    android:layout_marginEnd="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="CONNECTION LINK"
-                        android:textColor="#475569"
-                        android:textSize="10sp"
-                        android:fontFamily="sans-serif-bold" />
-
-                    <TextView
-                        android:id="@+id/cardLinkStatus"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="USB / Wi-Fi"
-                        android:textColor="#FFFFFF"
-                        android:textSize="16sp"
-                        android:fontFamily="sans-serif-bold" />
-
-                    <TextView
-                        android:id="@+id/cardLinkSub"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Auto-Detecting..."
-                        android:textColor="#38BDF8"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <!-- Card 3: Decoder -->
-                <LinearLayout
-                    android:layout_width="200dp"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/card_glass_bg"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="HARDWARE ACCEL"
-                        android:textColor="#475569"
-                        android:textSize="10sp"
-                        android:fontFamily="sans-serif-bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="LowLatency HEVC"
-                        android:textColor="#FFFFFF"
-                        android:textSize="16sp"
-                        android:fontFamily="sans-serif-bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Dimensity 9300+ MediaCodec"
-                        android:textColor="#A78BFA"
-                        android:textSize="11sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Manual IP Connect Row -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="32dp">
-
-                <EditText
-                    android:id="@+id/manualIpInput"
-                    android:layout_width="220dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/edittext_bg"
-                    android:hint="Mac IP (e.g. 192.168.1.5)"
-                    android:textColorHint="#475569"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
-                    android:inputType="textUri"
-                    android:singleLine="true" />
-
-                <androidx.appcompat.widget.AppCompatButton
-                    android:id="@+id/connectBtn"
+                <TextView
+                    android:id="@+id/dashStatusTitle"
                     android:layout_width="wrap_content"
-                    android:layout_height="44dp"
-                    android:layout_marginStart="10dp"
-                    android:background="@drawable/btn_primary"
-                    android:text="Connect"
-                    android:textAllCaps="false"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Connect to Mac mini M4"
                     android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:fontFamily="sans-serif-bold"
-                    android:paddingStart="24dp"
-                    android:paddingEnd="24dp" />
-            </LinearLayout>
-        </LinearLayout>
+                    android:textSize="22sp"
+                    android:fontFamily="sans-serif-bold" />
 
-        <!-- Footer -->
+                <TextView
+                    android:id="@+id/dashStatusSub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Choose how you want to connect your Galaxy Tab S10 Ultra:"
+                    android:textColor="#94A3B8"
+                    android:textSize="13sp" />
+
+                <!-- TWO EXPLICIT CONNECTION MODE CARDS -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="20dp">
+
+                    <!-- CARD 1: USB-C DATA CABLE (Recommended) -->
+                    <LinearLayout
+                        android:layout_width="340dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_highlight_usb"
+                        android:orientation="vertical"
+                        android:padding="20dp"
+                        android:layout_marginEnd="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⚡ RECOMMENDED • 0ms LAG"
+                            android:textColor="#10B981"
+                            android:textSize="11sp"
+                            android:fontFamily="sans-serif-black" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="USB-C Data Cable"
+                            android:textColor="#FFFFFF"
+                            android:textSize="18sp"
+                            android:fontFamily="sans-serif-bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="• Direct 5 Gbps physical wire\n• 0.5ms sub-millisecond wire latency\n• Full 85 Mbps 120 FPS Retina quality\n• Target: 127.0.0.1 (ADB tunnel)"
+                            android:textColor="#94A3B8"
+                            android:textSize="12sp"
+                            android:lineSpacingExtra="3dp" />
+
+                        <androidx.appcompat.widget.AppCompatButton
+                            android:id="@+id/btnConnectUsb"
+                            android:layout_width="match_parent"
+                            android:layout_height="46dp"
+                            android:layout_marginTop="18dp"
+                            android:background="@drawable/btn_usb_gradient"
+                            android:text="⚡ Connect via USB Cable"
+                            android:textAllCaps="false"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:fontFamily="sans-serif-bold" />
+                    </LinearLayout>
+
+                    <!-- CARD 2: WI-FI WIRELESS LINK -->
+                    <LinearLayout
+                        android:layout_width="340dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/card_highlight_wifi"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📶 WIRELESS LINK"
+                            android:textColor="#38BDF8"
+                            android:textSize="11sp"
+                            android:fontFamily="sans-serif-black" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="Local Wi-Fi Network"
+                            android:textColor="#FFFFFF"
+                            android:textSize="18sp"
+                            android:fontFamily="sans-serif-bold" />
+
+                        <TextView
+                            android:id="@+id/tvWifiDiscoveryStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="• Both devices on same Wi-Fi router\n• Auto-discovering Mac via Bonjour...\n• Smooth 40 Mbps 120 FPS link"
+                            android:textColor="#94A3B8"
+                            android:textSize="12sp"
+                            android:lineSpacingExtra="3dp" />
+
+                        <EditText
+                            android:id="@+id/manualIpInput"
+                            android:layout_width="match_parent"
+                            android:layout_height="42dp"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/edittext_bg"
+                            android:hint="Mac IP (e.g. 192.168.1.17)"
+                            android:textColorHint="#475569"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:inputType="textUri"
+                            android:singleLine="true" />
+
+                        <androidx.appcompat.widget.AppCompatButton
+                            android:id="@+id/btnConnectWifi"
+                            android:layout_width="match_parent"
+                            android:layout_height="46dp"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/btn_primary"
+                            android:text="📶 Connect via Wi-Fi"
+                            android:textAllCaps="false"
+                            android:textColor="#FFFFFF"
+                            android:textSize="14sp"
+                            android:fontFamily="sans-serif-bold" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Feedback & Progress Area -->
+                <ProgressBar
+                    android:id="@+id/searchProgress"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginTop="16dp"
+                    android:indeterminateTint="#38BDF8"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvStatusMessage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text=""
+                    android:textColor="#38BDF8"
+                    android:textSize="13sp"
+                    android:gravity="center"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Bottom Footer -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Make sure 'DisplayMacServer' is running on your Mac Mini M4"
+            android:text="For USB: Run './setup_usb.sh' on Mac | For Wi-Fi: Run 'swift run' on Mac"
             android:textColor="#475569"
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- Floating HUD during Live Stream (Subtle Glassmorphic Pill) -->
+    <!-- Floating HUD during Live Stream (Pill Overlay with Disconnect Button) -->
     <LinearLayout
         android:id="@+id/hudOverlay"
         android:layout_width="wrap_content"
@@ -291,9 +280,9 @@
         android:background="@drawable/hud_background"
         android:orientation="horizontal"
         android:paddingStart="16dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp"
         android:gravity="center_vertical"
         android:visibility="gone">
 
@@ -317,11 +306,33 @@
             android:id="@+id/fpsText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="14dp"
             android:text="120 FPS"
             android:textColor="@color/status_green"
             android:textSize="12sp"
             android:fontFamily="sans-serif-bold" />
+
+        <!-- Vertical Divider -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="12dp"
+            android:background="#33FFFFFF" />
+
+        <!-- Disconnect Button Inside HUD -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnDisconnect"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:background="@drawable/btn_disconnect_bg"
+            android:text="✕ Disconnect"
+            android:textAllCaps="false"
+            android:textColor="#EF4444"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-bold"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp" />
     </LinearLayout>
 
 </FrameLayout>

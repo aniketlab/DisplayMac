@@ -8,11 +8,11 @@ import com.displaymac.client.protocol.ProtocolConstants
 import kotlinx.coroutines.*
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ConnectionManager(
     private val context: Context,
@@ -27,82 +27,43 @@ class ConnectionManager(
     private var controlSocket: Socket? = null
     private var videoSocket: Socket? = null
     private var controlOutputStream: DataOutputStream? = null
-    
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var isRunning = false
-    private var isConnected = false
+
+    private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var connectionJob: Job? = null
+
+    private val _isConnected = AtomicBoolean(false)
+    val isConnected: Boolean
+        get() = _isConnected.get()
+
     private var nsdManager: NsdManager? = null
+    private var discoveryListener: NsdManager.DiscoveryListener? = null
 
-    fun startAutoDiscoveryAndConnect() {
-        if (isRunning) return
-        isRunning = true
+    /**
+     * Start background Bonjour/mDNS discovery.
+     * Only updates the UI with the discovered IP — DOES NOT auto-connect.
+     */
+    fun startMdnsDiscovery(onDiscovered: (ip: String) -> Unit) {
+        nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager ?: return
+        
+        stopMdnsDiscovery()
 
-        scope.launch {
-            // STEP 1: Strict USB Cable Priority Check (Port 7100 on localhost 127.0.0.1)
-            val usbIp = checkUsbCandidates()
-            if (usbIp != null) {
-                Log.i(TAG, "⚡ Direct USB-C Wire Detected! Connecting via USB...")
-                connectToHost(usbIp, "Direct USB-C (5 Gbps)")
-                startUsbMonitoring()
-                return@launch
-            }
-
-            // STEP 2: Fallback to Wi-Fi mDNS only when USB cable is absent
-            startUsbMonitoring()
-            Log.i(TAG, "No USB cable detected. Falling back to Wi-Fi mDNS...")
-            discoverViaMdns()
-        }
-    }
-
-    private fun startUsbMonitoring() {
-        scope.launch {
-            while (isRunning) {
-                if (!isConnected) {
-                    val usbCandidate = checkUsbCandidates()
-                    if (usbCandidate != null && !isConnected) {
-                        Log.i(TAG, "⚡ USB Link active: $usbCandidate")
-                        connectToHost(usbCandidate, "Direct USB-C (5 Gbps)")
-                    }
-                }
-                delay(1200)
-            }
-        }
-    }
-
-    private fun checkUsbCandidates(): String? {
-        val candidates = listOf("127.0.0.1", "192.168.42.129", "192.168.42.1")
-        for (ip in candidates) {
-            try {
-                Socket().use { socket ->
-                    socket.connect(InetSocketAddress(ip, ProtocolConstants.CONTROL_PORT), 300)
-                    return ip
-                }
-            } catch (_: Exception) {
-                // Not reachable
-            }
-        }
-        return null
-    }
-
-    private fun discoverViaMdns() {
-        nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
-        val discoveryListener = object : NsdManager.DiscoveryListener {
+        val listener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(regType: String) {
-                Log.d(TAG, "mDNS Discovery started")
+                Log.d(TAG, "mDNS Discovery started for $regType")
             }
 
             override fun onServiceFound(service: NsdServiceInfo) {
                 if (service.serviceType.contains("displaymac")) {
                     nsdManager?.resolveService(service, object : NsdManager.ResolveListener {
                         override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                            Log.e(TAG, "Resolve failed: $errorCode")
+                            Log.e(TAG, "mDNS Resolve failed: $errorCode")
                         }
 
                         override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                            val host = serviceInfo.host.hostAddress ?: return
-                            Log.i(TAG, "Discovered DisplayMac Host via Wi-Fi: $host")
-                            scope.launch {
-                                connectToHost(host, "Wi-Fi 6E/7")
+                            val host = serviceInfo.host?.hostAddress ?: return
+                            Log.i(TAG, "Discovered DisplayMac Host: $host")
+                            managerScope.launch(Dispatchers.Main) {
+                                onDiscovered(host)
                             }
                         }
                     })
@@ -116,31 +77,52 @@ class ConnectionManager(
         }
 
         try {
-            nsdManager?.discoverServices(ProtocolConstants.BONJOUR_SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            this.discoveryListener = listener
+            nsdManager?.discoverServices(
+                ProtocolConstants.BONJOUR_SERVICE_TYPE,
+                NsdManager.PROTOCOL_DNS_SD,
+                listener
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start mDNS discovery", e)
         }
     }
 
-    fun connectToHost(host: String, connectionMode: String) {
-        if (isConnected) return
-        scope.launch {
+    fun stopMdnsDiscovery() {
+        discoveryListener?.let {
+            try {
+                nsdManager?.stopServiceDiscovery(it)
+            } catch (_: Exception) {}
+            discoveryListener = null
+        }
+    }
+
+    /**
+     * Connect to target host (127.0.0.1 for USB cable, or local Wi-Fi IP).
+     */
+    fun connectToHost(host: String, connectionMode: String, onError: (String) -> Unit) {
+        if (_isConnected.get()) return
+
+        connectionJob?.cancel()
+        connectionJob = managerScope.launch {
             try {
                 Log.i(TAG, "Connecting to Control Channel $host:${ProtocolConstants.CONTROL_PORT}...")
                 val cSocket = Socket()
                 cSocket.tcpNoDelay = true
-                cSocket.connect(InetSocketAddress(host, ProtocolConstants.CONTROL_PORT), 3000)
+                cSocket.soTimeout = 0 // Infinite read timeout during streaming
+                cSocket.connect(InetSocketAddress(host, ProtocolConstants.CONTROL_PORT), 3500)
                 controlSocket = cSocket
                 controlOutputStream = DataOutputStream(cSocket.getOutputStream())
 
                 Log.i(TAG, "Connecting to Video Channel $host:${ProtocolConstants.VIDEO_PORT}...")
                 val vSocket = Socket()
                 vSocket.tcpNoDelay = true
-                vSocket.receiveBufferSize = 4 * 1024 * 1024 // 4MB buffer for 120Hz peak stream
-                vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 3000)
+                vSocket.receiveBufferSize = 4 * 1024 * 1024 // 4MB buffer
+                vSocket.soTimeout = 0
+                vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 3500)
                 videoSocket = vSocket
 
-                isConnected = true
+                _isConnected.set(true)
                 withContext(Dispatchers.Main) {
                     onConnected(connectionMode)
                 }
@@ -154,22 +136,24 @@ class ConnectionManager(
                 )
                 sendControlPacket(helloPacket)
 
-                // Start Video Receiver Loop
+                // Start Streaming receiver loops
                 launch { readVideoStream(vSocket) }
-                // Start Control Receiver Loop
                 launch { readControlStream(cSocket) }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Connection failed to $host", e)
+                cleanupSockets()
+                _isConnected.set(false)
                 withContext(Dispatchers.Main) {
-                    onDisconnected()
+                    val msg = e.localizedMessage ?: "Connection timed out"
+                    onError(msg)
                 }
             }
         }
     }
 
     fun sendControlPacket(packet: ByteArray) {
-        scope.launch {
+        managerScope.launch {
             try {
                 controlOutputStream?.write(packet)
                 controlOutputStream?.flush()
@@ -183,7 +167,7 @@ class ConnectionManager(
         try {
             val dis = DataInputStream(socket.getInputStream())
             val headerBuffer = ByteArray(8)
-            while (isRunning && !socket.isClosed) {
+            while (_isConnected.get() && !socket.isClosed) {
                 dis.readFully(headerBuffer)
                 val bb = ByteBuffer.wrap(headerBuffer).order(ByteOrder.BIG_ENDIAN)
                 val magic = bb.short
@@ -201,7 +185,8 @@ class ConnectionManager(
                 }
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Control stream closed: ${e.message}")
+            Log.d(TAG, "Control stream terminated: ${e.message}")
+            handleRemoteDisconnect()
         }
     }
 
@@ -210,7 +195,7 @@ class ConnectionManager(
             val dis = DataInputStream(socket.getInputStream())
             val headerBuffer = ByteArray(20)
 
-            while (isRunning && !socket.isClosed) {
+            while (_isConnected.get() && !socket.isClosed) {
                 dis.readFully(headerBuffer)
                 val bb = ByteBuffer.wrap(headerBuffer).order(ByteOrder.BIG_ENDIAN)
                 val magic = bb.short
@@ -229,20 +214,49 @@ class ConnectionManager(
                 onVideoFrame(naluData, ptsUs, isKeyframe)
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Video stream disconnected: ${e.message}")
-            isConnected = false
-            scope.launch(Dispatchers.Main) {
+            Log.d(TAG, "Video stream terminated: ${e.message}")
+            handleRemoteDisconnect()
+        }
+    }
+
+    private fun handleRemoteDisconnect() {
+        if (_isConnected.compareAndSet(true, false)) {
+            Log.i(TAG, "Remote server disconnected or connection closed.")
+            cleanupSockets()
+            managerScope.launch(Dispatchers.Main) {
                 onDisconnected()
             }
         }
     }
 
-    fun stop() {
-        isRunning = false
+    /**
+     * Clean manual disconnect requested by user.
+     */
+    fun disconnect() {
+        Log.i(TAG, "User requested disconnect.")
+        _isConnected.set(false)
+        connectionJob?.cancel()
+        cleanupSockets()
+        managerScope.launch(Dispatchers.Main) {
+            onDisconnected()
+        }
+    }
+
+    private fun cleanupSockets() {
         try {
             controlSocket?.close()
+        } catch (_: Exception) {}
+        try {
             videoSocket?.close()
         } catch (_: Exception) {}
-        scope.cancel()
+        controlSocket = null
+        videoSocket = null
+        controlOutputStream = null
+    }
+
+    fun shutdown() {
+        disconnect()
+        stopMdnsDiscovery()
+        managerScope.cancel()
     }
 }
