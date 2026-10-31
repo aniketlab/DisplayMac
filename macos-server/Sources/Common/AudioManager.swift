@@ -5,8 +5,24 @@ public final class AudioManager {
     public static let shared = AudioManager()
     
     private var previousDefaultDeviceID: AudioDeviceID?
+    private var ioProcID: AudioDeviceIOProcID?
+    private var capturingDeviceID: AudioDeviceID?
+    private var audioCallback: ((Data) -> Void)?
+    private var isCapturing = false
+    
+    private let nameFilePath = "/tmp/displaymac_audio_name.txt"
     
     private init() {}
+    
+    /// Sets the dynamic tablet model name (e.g. "Samsung Galaxy Tab S10 Ultra (DisplayMac)")
+    public func setDynamicDeviceName(_ name: String) {
+        do {
+            try name.write(toFile: nameFilePath, atomically: true, encoding: .utf8)
+            print("[Audio] 🏷️ Dynamic audio device name set to: '\(name)'")
+        } catch {
+            print("[Audio] Failed to write dynamic audio device name: \(error)")
+        }
+    }
     
     /// Queries all connected audio output devices
     public func getOutputDevices() -> [(id: AudioDeviceID, name: String)] {
@@ -40,7 +56,6 @@ public final class AudioManager {
         
         var outputDevices: [(id: AudioDeviceID, name: String)] = []
         for id in deviceIDs {
-            // Check if device has output streams
             var streamAddress = AudioObjectPropertyAddress(
                 mSelector: kAudioDevicePropertyStreams,
                 mScope: kAudioObjectPropertyScopeOutput,
@@ -56,10 +71,10 @@ public final class AudioManager {
         return outputDevices
     }
     
-    /// Finds a tablet-associated audio output device (Samsung, Tab, Galaxy, DisplayMac, BlackHole)
+    /// Finds a tablet-associated audio output device (DisplayMac, Samsung, Tab, Galaxy, BlackHole)
     public func findTabletAudioDevice() -> (id: AudioDeviceID, name: String)? {
         let devices = getOutputDevices()
-        let keywords = ["samsung", "galaxy", "tab", "displaymac", "blackhole"]
+        let keywords = ["displaymac", "samsung", "galaxy", "tab", "blackhole"]
         for dev in devices {
             let lowerName = dev.name.lowercased()
             for kw in keywords {
@@ -122,6 +137,66 @@ public final class AudioManager {
             _ = setDefaultOutputDevice(previousID)
             self.previousDefaultDeviceID = nil
         }
+    }
+    
+    /// Start capturing audio loopback from the virtual tablet audio device
+    public func startCapturing(deviceID: AudioDeviceID, onPCMData: @escaping (Data) -> Void) -> Bool {
+        stopCapturing()
+        self.capturingDeviceID = deviceID
+        self.audioCallback = onPCMData
+        
+        var proc: AudioDeviceIOProcID?
+        let status = AudioDeviceCreateIOProcIDWithBlock(&proc, deviceID, nil) { [weak self] _, inInputData, _, _, _ in
+            guard let self = self else { return }
+            let bufferList = inInputData.pointee
+            let numBuffers = Int(bufferList.mNumberBuffers)
+            guard numBuffers > 0 else { return }
+            
+            let buffers = UnsafeBufferPointer(start: &inInputData.pointee.mBuffers, count: numBuffers)
+            guard let mData = buffers[0].mData else { return }
+            let byteSize = Int(buffers[0].mDataByteSize)
+            
+            let floatCount = byteSize / MemoryLayout<Float>.size
+            guard floatCount > 0 else { return }
+            
+            let floatPtr = mData.assumingMemoryBound(to: Float.self)
+            var pcmData = Data(count: floatCount * 2)
+            pcmData.withUnsafeMutableBytes { outRaw in
+                let int16Ptr = outRaw.bindMemory(to: Int16.self).baseAddress!
+                for i in 0..<floatCount {
+                    let f = max(-1.0, min(1.0, floatPtr[i]))
+                    int16Ptr[i] = Int16(f * 32767.0)
+                }
+            }
+            self.audioCallback?(pcmData)
+        }
+        
+        guard status == noErr, let validProc = proc else {
+            print("[Audio] Error creating IOProc on device \(deviceID): \(status)")
+            return false
+        }
+        
+        self.ioProcID = validProc
+        let startStatus = AudioDeviceStart(deviceID, validProc)
+        if startStatus == noErr {
+            self.isCapturing = true
+            print("[Audio] ⚡ CoreAudio direct loopback capture active on device \(deviceID)!")
+            return true
+        } else {
+            print("[Audio] Failed to start audio device IO: \(startStatus)")
+            return false
+        }
+    }
+    
+    public func stopCapturing() {
+        guard isCapturing, let devID = capturingDeviceID, let proc = ioProcID else { return }
+        AudioDeviceStop(devID, proc)
+        AudioDeviceDestroyIOProcID(devID, proc)
+        self.ioProcID = nil
+        self.capturingDeviceID = nil
+        self.audioCallback = nil
+        self.isCapturing = false
+        print("[Audio] Audio capture stopped.")
     }
     
     public func getDeviceName(for deviceID: AudioDeviceID) -> String? {

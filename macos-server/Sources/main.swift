@@ -94,22 +94,29 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Setup Hardware HEVC encoder with medium-optimized bitrate
         _ = videoEncoder.setupSession(width: targetWidth, height: targetHeight, fps: targetFps, bitrateMbps: targetBitrateMbps)
         
-        // Smart Audio Management (Multiple Display Selection vs Single Headless Auto-Select)
-        let physicalDisplays = displayManager.getPhysicalDisplayIDs()
-        if physicalDisplays.isEmpty {
-            // Single Display / Headless mode: Auto-switch sound output to tablet
-            if let tabletAudio = AudioManager.shared.findTabletAudioDevice() {
+        // Smart Audio Management (Dynamic Device Name + Multiple Display Selection vs Single Auto-Select)
+        AudioManager.shared.setDynamicDeviceName("Samsung Galaxy Tab S10 Ultra (DisplayMac)")
+        
+        if let tabletAudio = AudioManager.shared.findTabletAudioDevice() {
+            // Start capturing direct audio loopback from the tablet virtual device
+            _ = AudioManager.shared.startCapturing(deviceID: tabletAudio.id) { [weak self] pcmData in
+                self?.networkServer.broadcastAudioFrame(pcmData: pcmData)
+            }
+            
+            let physicalDisplays = displayManager.getPhysicalDisplayIDs()
+            if physicalDisplays.isEmpty {
+                // Single Display / Headless mode: Auto-switch sound output to tablet
                 AudioManager.shared.saveCurrentOutputDevice()
                 if AudioManager.shared.setDefaultOutputDevice(tabletAudio.id) {
                     print("[Audio] 🔈 Single display active: Auto-selected '\(tabletAudio.name)' as default audio speaker!")
                 }
             } else {
-                print("[Audio] 🔈 Single display active (Headless). Connect tablet via Bluetooth/Sound menu for audio.")
+                // Multiple Displays mode (BenQ + Tablet): Allow user to select in Sound menu
+                print("[Audio] 🔈 Multiple displays detected (BenQ monitor active):")
+                print("        • Select '\(tabletAudio.name)' from macOS Sound menu anytime to route audio to tablet speakers!")
             }
         } else {
-            // Multiple Displays mode (BenQ + Tablet): Allow user to select in Sound menu
-            print("[Audio] 🔈 Multiple displays detected (BenQ monitor active):")
-            print("        • You can select your preferred audio output anytime from macOS Control Center > Sound menu.")
+            print("[Audio] 🔈 Tip: Run './setup_dynamic_audio.sh' once to enable the dynamic tablet speaker in your Sound menu.")
         }
         
         // Launch ScreenCaptureKit pipeline
@@ -128,6 +135,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
         print("\n[Coordinator] 🔌 Client disconnected. Releasing virtual display...")
+        AudioManager.shared.stopCapturing()
         AudioManager.shared.restorePreviousOutputDevice()
         InputInjector.shared.updateActiveDisplay(displayID: nil)
         Task {
