@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import ObjectiveC
 
 /// Manages virtual display creation on macOS (Apple Silicon).
 /// Utilizes CoreDisplay CGVirtualDisplay to spawn a high-resolution, high-refresh-rate virtual screen.
@@ -22,6 +23,11 @@ public final class VirtualDisplayManager {
         
         print("[VirtualDisplay] Initializing Virtual Display: \(width)x\(height) @ \(refreshRate)Hz...")
         
+        // Ensure CoreDisplay framework is dynamically loaded in process memory
+        if NSClassFromString("CGVirtualDisplay") == nil {
+            dlopen("/System/Library/Frameworks/CoreDisplay.framework/CoreDisplay", RTLD_NOW)
+        }
+        
         // Attempt dynamically loading CoreDisplay CGVirtualDisplay
         if let displayClass = NSClassFromString("CGVirtualDisplay") as? NSObject.Type,
            let descriptorClass = NSClassFromString("CGVirtualDisplayDescriptor") as? NSObject.Type,
@@ -35,27 +41,45 @@ public final class VirtualDisplayManager {
             descriptor.setValue(UInt32(35638), forKey: "productID")
             descriptor.setValue(UInt32(0x444D), forKey: "vendorID")
             
-            let selector = NSSelectorFromString("initWithDescriptor:")
-            if displayClass.instancesRespond(to: selector) {
-                let displayObj = displayClass.perform(selector, with: descriptor)?.takeUnretainedValue()
+            let allocSel = NSSelectorFromString("alloc")
+            let displayInitSel = NSSelectorFromString("initWithDescriptor:")
+            
+            typealias DisplayInitFunc = @convention(c) (AnyObject, Selector, AnyObject) -> AnyObject?
+            
+            if let displayAlloc = (displayClass as AnyObject).perform(allocSel)?.takeUnretainedValue(),
+               let displayMethod = class_getInstanceMethod(displayClass, displayInitSel) {
                 
-                // Configure Mode
-                let modeInitSelector = NSSelectorFromString("initWithWidth:height:refreshRate:")
-                if let modeInstance = (modeClass as AnyObject).perform(modeInitSelector, with: width, with: height, with: Double(refreshRate))?.takeUnretainedValue() {
-                    let settingsClass = NSClassFromString("CGVirtualDisplaySettings") as? NSObject.Type
-                    let settings = settingsClass?.init()
-                    settings?.setValue([modeInstance], forKey: "modes")
+                let displayInit = unsafeBitCast(method_getImplementation(displayMethod), to: DisplayInitFunc.self)
+                if let displayObj = displayInit(displayAlloc, displayInitSel, descriptor) {
                     
-                    let applySelector = NSSelectorFromString("applySettings:")
-                    _ = displayObj?.perform(applySelector, with: settings)
-                }
-                
-                self.virtualDisplayInstance = displayObj
-                
-                if let displayIDValue = displayObj?.value(forKey: "displayID") as? CGDirectDisplayID {
-                    self.activeDisplayID = displayIDValue
-                    print("[VirtualDisplay] Successfully spawned CGVirtualDisplay ID: \(displayIDValue)")
-                    return true
+                    // Mode Init: initWithWidth:height:refreshRate:
+                    let modeInitSel = NSSelectorFromString("initWithWidth:height:refreshRate:")
+                    typealias ModeInitFunc = @convention(c) (AnyObject, Selector, UInt32, UInt32, Double) -> AnyObject?
+                    
+                    if let modeAlloc = (modeClass as AnyObject).perform(allocSel)?.takeUnretainedValue(),
+                       let modeMethod = class_getInstanceMethod(modeClass, modeInitSel) {
+                        
+                        let modeInit = unsafeBitCast(method_getImplementation(modeMethod), to: ModeInitFunc.self)
+                        if let modeInstance = modeInit(modeAlloc, modeInitSel, UInt32(width), UInt32(height), Double(refreshRate)) {
+                            
+                            let settingsClass = NSClassFromString("CGVirtualDisplaySettings") as? NSObject.Type
+                            let settings = settingsClass?.init()
+                            settings?.setValue([modeInstance], forKey: "modes")
+                            
+                            let applySel = NSSelectorFromString("applySettings:")
+                            if (displayObj as AnyObject).responds(to: applySel) {
+                                _ = (displayObj as AnyObject).perform(applySel, with: settings)
+                            }
+                        }
+                    }
+                    
+                    self.virtualDisplayInstance = displayObj
+                    
+                    if let displayIDValue = (displayObj as AnyObject).value(forKey: "displayID") as? CGDirectDisplayID {
+                        self.activeDisplayID = displayIDValue
+                        print("[VirtualDisplay] Successfully spawned CGVirtualDisplay ID: \(displayIDValue)")
+                        return true
+                    }
                 }
             }
         }
@@ -72,8 +96,8 @@ public final class VirtualDisplayManager {
         if let display = virtualDisplayInstance {
             print("[VirtualDisplay] Releasing virtual display...")
             let terminateSelector = NSSelectorFromString("terminate")
-            if display.responds(to: terminateSelector) {
-                _ = display.perform(terminateSelector)
+            if (display as AnyObject).responds(to: terminateSelector) {
+                _ = (display as AnyObject).perform(terminateSelector)
             }
             virtualDisplayInstance = nil
             activeDisplayID = nil
