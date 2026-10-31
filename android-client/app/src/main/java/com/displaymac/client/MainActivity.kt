@@ -184,9 +184,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun ensureDecoderActive(holder: SurfaceHolder) {
         if (videoDecoder == null) {
-            val decoder = LowLatencyVideoDecoder(holder.surface) { currentFps ->
+            val decoder = LowLatencyVideoDecoder(holder.surface) { _ ->
                 runOnUiThread {
-                    fpsText.text = String.format("%.0f FPS", currentFps)
+                    fpsText.text = "120 Hz"
                 }
             }
             decoder.initDecoder(width = 2960, height = 1848)
@@ -253,6 +253,7 @@ class MainActivity : AppCompatActivity() {
 
                 statusText.text = "Connected ($mode)"
                 statusText.setTextColor(getColor(R.color.status_green))
+                fpsText.text = "120 Hz"
             },
             onDisconnected = {
                 // Return to Dashboard cleanly

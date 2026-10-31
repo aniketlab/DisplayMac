@@ -64,9 +64,16 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         let targetBitrateMbps = isUsb ? 60 : 35
         print("[Coordinator] 🔗 Connection Link: \(isUsb ? "⚡ USB-C Direct Cable (60 Mbps Ultra-Low Latency)" : "📶 Wi-Fi Wireless (35 Mbps)")")
         
-        // Spawn virtual display matching tablet exact resolution
+        // Spawn virtual display matching tablet exact resolution with HiDPI Retina modes
         _ = displayManager.setupVirtualDisplay(width: targetWidth, height: targetHeight, refreshRate: targetFps)
-        InputInjector.shared.updateScreenBounds(width: CGFloat(targetWidth), height: CGFloat(targetHeight))
+        
+        if let displayID = displayManager.activeDisplayID {
+            let bounds = CGDisplayBounds(displayID)
+            InputInjector.shared.updateScreenBounds(width: bounds.width, height: bounds.height)
+            print("[Coordinator] Touch/Stylus bounds mapped to logical: \(Int(bounds.width))x\(Int(bounds.height)) (HiDPI Retina)")
+        } else {
+            InputInjector.shared.updateScreenBounds(width: CGFloat(targetWidth), height: CGFloat(targetHeight))
+        }
         
         // Send ServerConfig acknowledgement
         let config = ServerConfig(

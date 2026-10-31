@@ -307,7 +307,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
-            android:text="120 FPS"
+            android:text="120 Hz"
             android:textColor="@color/status_green"
             android:textSize="12sp"
             android:fontFamily="sans-serif-bold" />

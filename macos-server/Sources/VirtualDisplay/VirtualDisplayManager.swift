@@ -56,20 +56,35 @@ public final class VirtualDisplayManager {
                     let modeInitSel = NSSelectorFromString("initWithWidth:height:refreshRate:")
                     typealias ModeInitFunc = @convention(c) (AnyObject, Selector, UInt32, UInt32, Double) -> AnyObject?
                     
-                    if let modeAlloc = (modeClass as AnyObject).perform(allocSel)?.takeUnretainedValue(),
-                       let modeMethod = class_getInstanceMethod(modeClass, modeInitSel) {
-                        
-                        let modeInit = unsafeBitCast(method_getImplementation(modeMethod), to: ModeInitFunc.self)
-                        if let modeInstance = modeInit(modeAlloc, modeInitSel, UInt32(width), UInt32(height), Double(refreshRate)) {
-                            
-                            let settingsClass = NSClassFromString("CGVirtualDisplaySettings") as? NSObject.Type
-                            let settings = settingsClass?.init()
-                            settings?.setValue([modeInstance], forKey: "modes")
-                            
-                            let applySel = NSSelectorFromString("applySettings:")
-                            if (displayObj as AnyObject).responds(to: applySel) {
-                                _ = (displayObj as AnyObject).perform(applySel, with: settings)
+                    var modeInstances: [AnyObject] = []
+                    
+                    // Register HiDPI Retina modes matching 14.6" Tab S10 Ultra (16:10 aspect ratio)
+                    // Primary mode is 1480x924 (Exact 2x Retina, identical to MacBook Pro UI scale)
+                    let supportedResolutions: [(UInt32, UInt32)] = [
+                        (1480, 924),   // 2.0x HiDPI Retina (Default: Comfortable MacBook Pro UI size)
+                        (1680, 1050),  // 1.76x HiDPI Retina (More Space)
+                        (1920, 1200),  // 1.54x HiDPI Retina (Wide Workspace)
+                        (UInt32(width), UInt32(height)) // 1.0x Native Peak Points (2960x1848)
+                    ]
+                    
+                    for (modeW, modeH) in supportedResolutions {
+                        if let modeAlloc = (modeClass as AnyObject).perform(allocSel)?.takeUnretainedValue(),
+                           let modeMethod = class_getInstanceMethod(modeClass, modeInitSel) {
+                            let modeInit = unsafeBitCast(method_getImplementation(modeMethod), to: ModeInitFunc.self)
+                            if let modeInstance = modeInit(modeAlloc, modeInitSel, modeW, modeH, Double(refreshRate)) {
+                                modeInstances.append(modeInstance)
                             }
+                        }
+                    }
+                    
+                    if !modeInstances.isEmpty {
+                        let settingsClass = NSClassFromString("CGVirtualDisplaySettings") as? NSObject.Type
+                        let settings = settingsClass?.init()
+                        settings?.setValue(modeInstances, forKey: "modes")
+                        
+                        let applySel = NSSelectorFromString("applySettings:")
+                        if (displayObj as AnyObject).responds(to: applySel) {
+                            _ = (displayObj as AnyObject).perform(applySel, with: settings)
                         }
                     }
                     
