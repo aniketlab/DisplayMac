@@ -42,12 +42,8 @@ public final class HardwareVideoEncoder {
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxFrameDelayCount, value: NSNumber(value: 0)) // 0 Frame latency!
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: NSNumber(value: fps))
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: bitrateMbps * 1_000_000))
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: 85_000_000)) // 85 Mbps pristine retina bitrate
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: NSNumber(value: fps)) // Keyframe every 1s
-        
-        let byteLimit = (bitrateMbps * 1_000_000) / 8
-        let limits: [NSNumber] = [NSNumber(value: byteLimit), NSNumber(value: 1)]
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits, value: limits as CFArray)
         
         VTCompressionSessionPrepareToEncodeFrames(session)
         print("[Encoder] Hardware HEVC VideoToolbox session active (\(width)x\(height) @ \(fps)fps, \(bitrateMbps) Mbps)")

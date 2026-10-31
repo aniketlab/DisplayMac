@@ -51,6 +51,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         configuration.height = height
         configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(targetFps))
         configuration.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange // NV12
+        configuration.colorSpaceName = CGColorSpace.sRGB
         configuration.showsCursor = true
         configuration.capturesAudio = false
         configuration.scalesToFit = false // Pixel-perfect 1:1 mapping, no blur
