@@ -1,0 +1,152 @@
+import Foundation
+import VideoToolbox
+import CoreMedia
+
+public protocol HardwareVideoEncoderDelegate: AnyObject {
+    func videoEncoder(_ encoder: HardwareVideoEncoder, didEncodePacket data: Data, isKeyframe: Bool, pts: CMTime)
+}
+
+public final class HardwareVideoEncoder {
+    public weak var delegate: HardwareVideoEncoderDelegate?
+    
+    private var session: VTCompressionSession?
+    private var frameIndex: UInt32 = 0
+    private var forceKeyframe: Bool = true
+    
+    public init() {}
+    
+    public func setupSession(width: Int, height: Int, fps: Int = 120, bitrateMbps: Int = 80) -> Bool {
+        teardown()
+        
+        let status = VTCompressionSessionCreate(
+            allocator: kCFAllocatorDefault,
+            width: Int32(width),
+            height: Int32(height),
+            codecType: kCMVideoCodecType_HEVC,
+            encoderSpecification: nil,
+            imageBufferAttributes: nil,
+            compressedDataAllocator: nil,
+            outputCallback: compressionCallback,
+            refcon: Unmanaged.passUnretained(self).toOpaque(),
+            compressionSessionOut: &session
+        )
+        
+        guard status == noErr, let session = session else {
+            print("[Encoder] Failed to initialize VTCompressionSession, status: \(status)")
+            return false
+        }
+        
+        // Optimize for ultra-low latency interactive streaming
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_HEVC_Main_AutoLevel)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: NSNumber(value: fps))
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: NSNumber(value: bitrateMbps * 1_000_000))
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: NSNumber(value: fps * 2)) // Keyframe every 2s
+        
+        VTCompressionSessionPrepareToEncodeFrames(session)
+        print("[Encoder] Hardware HEVC VideoToolbox session active (\(width)x\(height) @ \(fps)fps, \(bitrateMbps) Mbps)")
+        return true
+    }
+    
+    public func encode(sampleBuffer: CMSampleBuffer) {
+        guard let session = session, let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        let duration = CMSampleBufferGetDuration(sampleBuffer)
+        
+        var properties: CFDictionary? = nil
+        if forceKeyframe {
+            let dict: [CFString: Any] = [kVTEncodeFrameOptionKey_ForceKeyFrame: true]
+            properties = dict as CFDictionary
+            forceKeyframe = false
+        }
+        
+        VTCompressionSessionEncodeFrame(
+            session,
+            imageBuffer: imageBuffer,
+            presentationTimeStamp: pts,
+            duration: duration,
+            frameProperties: properties,
+            sourceFrameRefcon: nil,
+            infoFlagsOut: nil
+        )
+    }
+    
+    public func requestImmediateKeyframe() {
+        self.forceKeyframe = true
+    }
+    
+    public func teardown() {
+        if let session = session {
+            VTCompressionSessionInvalidate(session)
+            self.session = nil
+        }
+    }
+    
+    deinit {
+        teardown()
+    }
+    
+    fileprivate func handleEncodedSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
+        guard let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer),
+              let dataBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return }
+        
+        let isKeyframe = !CFDictionaryContainsKey(
+            unsafeBitCast(CFArrayGetValueAtIndex(CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false), 0), to: CFDictionary.self),
+            Unmanaged.passUnretained(kCMSampleAttachmentKey_NotSync).toOpaque()
+        )
+        
+        var packetData = Data()
+        
+        // If keyframe, attach HEVC Parameter Sets (VPS, SPS, PPS) in Annex B format
+        if isKeyframe {
+            var paramSetCount = 0
+            CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(formatDesc, parameterSetIndex: 0, parameterSetPointerOut: nil, parameterSetSizeOut: nil, parameterSetCountOut: &paramSetCount, nalUnitHeaderLengthOut: nil)
+            
+            for i in 0..<paramSetCount {
+                var paramSetPtr: UnsafePointer<UInt8>?
+                var paramSetSize = 0
+                CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(formatDesc, parameterSetIndex: i, parameterSetPointerOut: &paramSetPtr, parameterSetSizeOut: &paramSetSize, parameterSetCountOut: nil, nalUnitHeaderLengthOut: nil)
+                if let ptr = paramSetPtr, paramSetSize > 0 {
+                    // Annex B start code 0x00000001
+                    packetData.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+                    packetData.append(ptr, count: paramSetSize)
+                }
+            }
+        }
+        
+        // Extract Slice NALUs
+        var totalLength = 0
+        var dataPointer: UnsafeMutablePointer<Int8>?
+        CMBlockBufferGetDataPointer(dataBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: &totalLength, dataPointerOut: &dataPointer)
+        
+        if let pointer = dataPointer {
+            var offset = 0
+            while offset < totalLength - 4 {
+                let lengthPrefixed = UInt32(bigEndian: pointer.advanced(by: offset).withMemoryRebound(to: UInt32.self, capacity: 1) { $0.pointee })
+                offset += 4
+                
+                packetData.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+                let nalBytes = UnsafeRawPointer(pointer.advanced(by: offset))
+                packetData.append(nalBytes.assumingMemoryBound(to: UInt8.self), count: Int(lengthPrefixed))
+                offset += Int(lengthPrefixed)
+            }
+        }
+        
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        delegate?.videoEncoder(self, didEncodePacket: packetData, isKeyframe: isKeyframe, pts: pts)
+    }
+}
+
+private func compressionCallback(
+    outputCallbackRefCon: UnsafeMutableRawPointer?,
+    sourceFrameRefCon: UnsafeMutableRawPointer?,
+    status: OSStatus,
+    infoFlags: VTEncodeInfoFlags,
+    sampleBuffer: CMSampleBuffer?
+) {
+    guard status == noErr, let sampleBuffer = sampleBuffer, let refCon = outputCallbackRefCon else { return }
+    let encoder = Unmanaged<HardwareVideoEncoder>.fromOpaque(refCon).takeUnretainedValue()
+    encoder.handleEncodedSampleBuffer(sampleBuffer)
+}
