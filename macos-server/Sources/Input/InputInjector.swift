@@ -161,6 +161,23 @@ public final class InputInjector {
     }
     
     // MARK: - S-Pen Stylus Handling (Wacom Digitizer Precision Drawing)
+    private var isPenInProximity = false
+    
+    private func sendTabletProximity(entering: Bool, point: CGPoint) {
+        if let event = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left) {
+            event.type = .tabletProximity
+            event.setIntegerValueField(.tabletProximityEventEnterProximity, value: entering ? 1 : 0)
+            event.setIntegerValueField(.tabletProximityEventVendorID, value: 0x056a) // Wacom Vendor ID
+            event.setIntegerValueField(.tabletProximityEventTabletID, value: 1)
+            event.setIntegerValueField(.tabletProximityEventPointerID, value: 1)
+            event.setIntegerValueField(.tabletProximityEventDeviceID, value: 1)
+            event.setIntegerValueField(.tabletProximityEventSystemPointerID, value: 1)
+            event.setIntegerValueField(.tabletProximityEventPointerType, value: 1) // 1 = Pen
+            event.setIntegerValueField(.tabletProximityEventCapabilityMask, value: 0x000F) // Pressure, Tilt, Buttons
+            event.post(tap: .cghidEventTap)
+        }
+    }
+    
     public func handleStylusPacket(_ packet: StylusPacket) {
         // Only inject touches if active virtual display exists (NEVER touch primary BenQ monitor)
         guard let displayID = activeDisplayID, displayID != CGMainDisplayID() else {
@@ -175,6 +192,12 @@ public final class InputInjector {
         let point = CGPoint(x: globalX, y: globalY)
         
         let isSecondaryButton = (packet.buttons & 0x01) != 0
+        
+        // Ensure Wacom proximity event is dispatched when pen enters range
+        if !isPenInProximity && packet.action != StylusAction.hoverExit {
+            sendTabletProximity(entering: true, point: point)
+            isPenInProximity = true
+        }
         
         switch packet.action {
         case StylusAction.down:
@@ -217,6 +240,12 @@ public final class InputInjector {
             if let event = CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left) {
                 event.setIntegerValueField(.mouseEventSubtype, value: tabletPointSubtype)
                 event.post(tap: .cghidEventTap)
+            }
+            
+        case StylusAction.hoverExit:
+            if isPenInProximity {
+                sendTabletProximity(entering: false, point: point)
+                isPenInProximity = false
             }
             
         default:

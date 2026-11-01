@@ -104,10 +104,11 @@ public struct ServerConfig {
 }
 
 public struct StylusAction {
-    public static let down: UInt8  = 0x01
-    public static let move: UInt8  = 0x02
-    public static let up: UInt8    = 0x03
-    public static let hover: UInt8 = 0x04
+    public static let down: UInt8      = 0x01
+    public static let move: UInt8      = 0x02
+    public static let up: UInt8        = 0x03
+    public static let hover: UInt8     = 0x04
+    public static let hoverExit: UInt8 = 0x05
 }
 
 public struct StylusPacket {

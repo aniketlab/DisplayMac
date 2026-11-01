@@ -436,6 +436,15 @@ class StylusInputHandler(
                 return true
             }
             MotionEvent.ACTION_HOVER_EXIT -> {
+                val packet = ProtocolConstants.buildStylusPacket(
+                    action = 0x05, // Hover Exit (Proximity Leave)
+                    buttons = 0x00,
+                    normX = 0f,
+                    normY = 0f,
+                    pressure = 0f,
+                    tilt = 0f
+                )
+                sendControlPacket(packet)
                 return true
             }
             else -> return false
