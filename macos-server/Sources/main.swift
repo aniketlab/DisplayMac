@@ -115,14 +115,11 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
                 self?.networkServer.broadcastAudioFrame(pcmData: pcmData)
             }
             
-            // Automatically switch macOS default audio to tablet
-            _ = AudioManager.shared.setDefaultOutputDevice(tabletAudio.id)
-            
             let activePhysical = AudioManager.shared.getPhysicalDefaultDeviceName()
-            print("[Audio] 🔈 Dynamic Audio Driver active: '\(dynamicName)'")
-            print("        • Sound automatically routed to tablet speakers!")
-            print("        • Physical audio source recorded: '\(activePhysical)'")
-            print("        • Upon tablet disconnect, sound will switch back to '\(activePhysical)' automatically!")
+            print("[Audio] 🔈 Dynamic Audio Driver ready: '\(dynamicName)'")
+            print("        • Current physical sound remains on: '\(activePhysical)'")
+            print("        • To listen on tablet, simply select '\(dynamicName)' from macOS Volume menu.")
+            print("        • If tablet is unplugged, sound will automatically fall back to '\(activePhysical)'!")
         } else {
             print("[Audio] 🔈 Tip: Run './setup_dynamic_audio.sh' once to enable the dynamic tablet speaker in your Sound menu.")
         }
@@ -149,7 +146,6 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         AudioManager.shared.stopCapturing()
         AudioManager.shared.setDynamicDeviceName("DisplayMac Audio (Offline)")
         AudioManager.shared.restorePreviousOutputDevice()
-        AudioManager.shared.restorePhysicalMacAudio()
         Task {
             await captureEngine.stopCapture()
         }

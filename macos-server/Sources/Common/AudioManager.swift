@@ -37,11 +37,18 @@ public final class AudioManager {
             DispatchQueue.main
         ) { [weak self] _, _ in
             guard let self = self else { return }
-            if !self.isClientConnected {
-                self.restorePhysicalMacAudio()
+            if let current = self.getDefaultOutputDevice(),
+               let name = self.getDeviceName(for: current) {
+                if !self.isDisplayMacVirtualAudio(name: name) {
+                    // User switched to a physical device (BenQ, Mac mini speakers, Headphones) -> remember it!
+                    self.previousDefaultDeviceID = current
+                } else if !self.isClientConnected {
+                    // Tablet is offline, but DisplayMac Audio was selected -> snap back immediately!
+                    self.restorePhysicalMacAudio()
+                }
             }
         }
-        print("[Audio] 🛡️ Real-time Silence Guard active (prevents accidental offline audio selection).")
+        print("[Audio] 🛡️ Real-time Silence Guard active (tracks physical audio memory & prevents offline mute).")
     }
     
     /// Sets the dynamic tablet model name (e.g. "Samsung Galaxy Tab S10 Ultra (DisplayMac)" or "DisplayMac Audio")
@@ -195,13 +202,19 @@ public final class AudioManager {
         }
     }
     
-    /// Restores previous audio output device on client disconnect
+    /// Restores previous audio output device on client disconnect (only if audio was left on tablet)
     public func restorePreviousOutputDevice() {
+        // Only revert if macOS audio is currently directed to the tablet!
+        guard let current = getDefaultOutputDevice(),
+              let currentName = getDeviceName(for: current),
+              isDisplayMacVirtualAudio(name: currentName) else {
+            return // User was already using physical audio (BenQ/Mac mini); do not interrupt!
+        }
+        
         if let previousID = previousDefaultDeviceID,
            let name = getDeviceName(for: previousID) {
             _ = setDefaultOutputDevice(previousID)
-            print("[Audio] 🔈 Restored audio output to previous device: '\(name)'")
-            self.previousDefaultDeviceID = nil
+            print("[Audio] 🔈 Tablet disconnected: Reverted sound to previous physical output '\(name)'!")
             return
         }
         
