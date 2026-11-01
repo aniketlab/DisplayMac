@@ -17,12 +17,31 @@ object ProtocolConstants {
     const val MSG_PING: Byte = 0x03
     const val MSG_PONG: Byte = 0x04
     const val MSG_REQUEST_KEYFRAME: Byte = 0x05
+    const val MSG_TOUCH_EVENT: Byte = 0x10
     const val MSG_STYLUS_EVENT: Byte = 0x11
 
     // Stream Frame Types
     const val FRAME_TYPE_KEYFRAME: Byte = 0x01
     const val FRAME_TYPE_P_FRAME: Byte = 0x02
     const val FRAME_TYPE_AUDIO: Byte = 0x03
+
+    object TouchAction {
+        const val TAP: Byte = 0x01
+        const val DOUBLE_TAP: Byte = 0x02
+        const val RIGHT_CLICK: Byte = 0x03
+        const val SCROLL: Byte = 0x04
+        const val DRAG_START: Byte = 0x05
+        const val DRAG_MOVE: Byte = 0x06
+        const val DRAG_END: Byte = 0x07
+        const val ZOOM: Byte = 0x08
+    }
+
+    object TouchPhase {
+        const val BEGAN: Byte = 0x01
+        const val CHANGED: Byte = 0x02
+        const val ENDED: Byte = 0x03
+        const val CANCELLED: Byte = 0x04
+    }
 
     fun buildClientHello(width: Int, height: Int, refreshRate: Int, dpi: Int, deviceName: String = ""): ByteArray {
         val nameBytes = deviceName.toByteArray(Charsets.UTF_8)
@@ -66,5 +85,23 @@ object ProtocolConstants {
         payload.putFloat(pressure)
         payload.putFloat(tilt)
         return buildControlMessage(MSG_STYLUS_EVENT, payload.array())
+    }
+
+    fun buildTouchPacket(
+        action: Byte,
+        phase: Byte,
+        normX: Float,
+        normY: Float,
+        deltaX: Float = 0f,
+        deltaY: Float = 0f
+    ): ByteArray {
+        val payload = ByteBuffer.allocate(18).order(ByteOrder.BIG_ENDIAN)
+        payload.put(action)
+        payload.put(phase)
+        payload.putFloat(normX)
+        payload.putFloat(normY)
+        payload.putFloat(deltaX)
+        payload.putFloat(deltaY)
+        return buildControlMessage(MSG_TOUCH_EVENT, payload.array())
     }
 }

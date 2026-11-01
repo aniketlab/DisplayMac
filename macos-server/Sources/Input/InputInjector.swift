@@ -1,5 +1,8 @@
 import Foundation
 import CoreGraphics
+#if canImport(AppKit)
+import AppKit
+#endif
 
 public final class InputInjector {
     public static let shared = InputInjector()
@@ -36,6 +39,128 @@ public final class InputInjector {
         self.screenHeight = height
     }
     
+    // MARK: - Native Touch Interaction (Taps, Kinetic Scrolling, Gestures without Mouse Arrow)
+    public func handleTouchPacket(_ packet: TouchPacket) {
+        guard let displayID = activeDisplayID, displayID != CGMainDisplayID() else {
+            return
+        }
+        
+        let bounds = CGDisplayBounds(displayID)
+        guard bounds.width > 0 && bounds.height > 0 else { return }
+        
+        let globalX = bounds.origin.x + (CGFloat(packet.normalizedX) * bounds.width)
+        let globalY = bounds.origin.y + (CGFloat(packet.normalizedY) * bounds.height)
+        let point = CGPoint(x: globalX, y: globalY)
+        
+        switch packet.action {
+        case TouchAction.tap:
+            // Single tap -> Left Click without persistent cursor
+            if let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left),
+               let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left) {
+                down.post(tap: .cghidEventTap)
+                up.post(tap: .cghidEventTap)
+            }
+            hideCursorOnTouch()
+            
+        case TouchAction.doubleTap:
+            // Double tap -> Double Click
+            for clickCount in 1...2 {
+                if let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left),
+                   let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left) {
+                    down.setIntegerValueField(.mouseEventClickState, value: Int64(clickCount))
+                    up.setIntegerValueField(.mouseEventClickState, value: Int64(clickCount))
+                    down.post(tap: .cghidEventTap)
+                    up.post(tap: .cghidEventTap)
+                }
+            }
+            hideCursorOnTouch()
+            
+        case TouchAction.rightClick:
+            // 2-finger tap or long press -> Secondary Click (Context Menu)
+            if let down = CGEvent(mouseEventSource: nil, mouseType: .rightMouseDown, mouseCursorPosition: point, mouseButton: .right),
+               let up = CGEvent(mouseEventSource: nil, mouseType: .rightMouseUp, mouseCursorPosition: point, mouseButton: .right) {
+                down.post(tap: .cghidEventTap)
+                up.post(tap: .cghidEventTap)
+            }
+            hideCursorOnTouch()
+            
+        case TouchAction.scroll:
+            // Smooth pixel-based kinetic scrolling (NO cursor arrow!)
+            let scrollY = Int32(packet.deltaY)
+            let scrollX = Int32(packet.deltaX)
+            
+            if let scroll = CGEvent(
+                scrollWheelEvent2Source: nil,
+                units: .pixel,
+                wheelCount: 2,
+                wheel1: scrollY,
+                wheel2: scrollX,
+                wheel3: 0
+            ) {
+                scroll.location = point
+                scroll.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+                
+                let phaseVal: Int64
+                switch packet.phase {
+                case TouchPhase.began:     phaseVal = 1 // kCGScrollPhaseBegan
+                case TouchPhase.changed:   phaseVal = 2 // kCGScrollPhaseChanged
+                case TouchPhase.ended:     phaseVal = 4 // kCGScrollPhaseEnded
+                case TouchPhase.cancelled: phaseVal = 8 // kCGScrollPhaseCancelled
+                default:                   phaseVal = 2
+                }
+                scroll.setIntegerValueField(.scrollWheelEventScrollPhase, value: phaseVal)
+                scroll.post(tap: .cghidEventTap)
+            }
+            
+        case TouchAction.dragStart:
+            // Double-tap & hold drag start (e.g. dragging windows or desktop files)
+            if let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left) {
+                down.post(tap: .cghidEventTap)
+            }
+            isMouseDown = true
+            
+        case TouchAction.dragMove:
+            if let drag = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDragged, mouseCursorPosition: point, mouseButton: .left) {
+                drag.post(tap: .cghidEventTap)
+            }
+            
+        case TouchAction.dragEnd:
+            if let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left) {
+                up.post(tap: .cghidEventTap)
+            }
+            isMouseDown = false
+            hideCursorOnTouch()
+            
+        case TouchAction.zoom:
+            // Pinch to zoom: In macOS, Command + Scroll zooms in Safari, Preview, etc.
+            let zoomDelta = Int32(packet.deltaY)
+            if zoomDelta != 0, let zoom = CGEvent(
+                scrollWheelEvent2Source: nil,
+                units: .pixel,
+                wheelCount: 1,
+                wheel1: zoomDelta,
+                wheel2: 0,
+                wheel3: 0
+            ) {
+                zoom.location = point
+                zoom.flags = .maskCommand
+                zoom.post(tap: .cghidEventTap)
+            }
+            
+        default:
+            break
+        }
+    }
+    
+    private func hideCursorOnTouch() {
+        #if canImport(AppKit)
+        DispatchQueue.main.async {
+            NSCursor.setHiddenUntilMouseMoves(true)
+        }
+        #endif
+    }
+    
+    // MARK: - S-Pen Stylus Handling (Wacom Digitizer Precision Drawing)
     public func handleStylusPacket(_ packet: StylusPacket) {
         // Only inject touches if active virtual display exists (NEVER touch primary BenQ monitor)
         guard let displayID = activeDisplayID, displayID != CGMainDisplayID() else {

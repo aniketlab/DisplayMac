@@ -128,3 +128,40 @@ public struct StylusPacket {
         self.tilt = Float(bitPattern: data.readUInt32BE(at: 14))
     }
 }
+
+public struct TouchAction {
+    public static let tap: UInt8        = 0x01
+    public static let doubleTap: UInt8  = 0x02
+    public static let rightClick: UInt8 = 0x03
+    public static let scroll: UInt8     = 0x04
+    public static let dragStart: UInt8  = 0x05
+    public static let dragMove: UInt8   = 0x06
+    public static let dragEnd: UInt8    = 0x07
+    public static let zoom: UInt8       = 0x08
+}
+
+public struct TouchPhase {
+    public static let began: UInt8     = 0x01
+    public static let changed: UInt8   = 0x02
+    public static let ended: UInt8     = 0x03
+    public static let cancelled: UInt8 = 0x04
+}
+
+public struct TouchPacket {
+    public let action: UInt8
+    public let phase: UInt8
+    public let normalizedX: Float
+    public let normalizedY: Float
+    public let deltaX: Float
+    public let deltaY: Float
+    
+    public init?(from data: Data) {
+        guard data.count >= 18 else { return nil }
+        self.action = data[0]
+        self.phase = data[1]
+        self.normalizedX = Float(bitPattern: data.readUInt32BE(at: 2))
+        self.normalizedY = Float(bitPattern: data.readUInt32BE(at: 6))
+        self.deltaX = Float(bitPattern: data.readUInt32BE(at: 10))
+        self.deltaY = Float(bitPattern: data.readUInt32BE(at: 14))
+    }
+}

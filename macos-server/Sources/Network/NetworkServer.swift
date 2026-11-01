@@ -217,6 +217,11 @@ public final class NetworkServer {
             print("[NetworkServer] Client requested immediate IDR keyframe")
             delegate?.networkServerDidRequestKeyframe(self)
             
+        case .touchEvent:
+            if let touch = TouchPacket(from: payload) {
+                InputInjector.shared.handleTouchPacket(touch)
+            }
+            
         case .stylusEvent:
             if let stylus = StylusPacket(from: payload) {
                 InputInjector.shared.handleStylusPacket(stylus)
