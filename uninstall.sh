@@ -92,30 +92,27 @@ echo "[6/7] Cleaning temporary files & caches..."
 rm -f /tmp/displaymac* /tmp/DisplayMac* 2>/dev/null || true
 
 echo "[7/7] Resetting macOS Privacy & Security permissions..."
-if [ -f "$DIR/reset_permissions.sh" ]; then
-    bash "$DIR/reset_permissions.sh"
-else
-    echo "• Resetting Accessibility permissions..."
-    tccutil reset Accessibility com.apple.Terminal 2>/dev/null || true
-    tccutil reset Accessibility com.googlecode.iterm2 2>/dev/null || true
-    tccutil reset Accessibility com.microsoft.VSCode 2>/dev/null || true
-    tccutil reset Accessibility com.displaymac.server 2>/dev/null || true
-    sudo tccutil reset Accessibility com.apple.Terminal 2>/dev/null || true
-    sudo tccutil reset Accessibility com.googlecode.iterm2 2>/dev/null || true
+echo "• Resetting Accessibility permissions..."
+tccutil reset Accessibility com.apple.Terminal 2>/dev/null || true
+tccutil reset Accessibility com.googlecode.iterm2 2>/dev/null || true
+tccutil reset Accessibility com.microsoft.VSCode 2>/dev/null || true
+tccutil reset Accessibility com.displaymac.server 2>/dev/null || true
+sudo tccutil reset Accessibility com.apple.Terminal 2>/dev/null || true
+sudo tccutil reset Accessibility com.googlecode.iterm2 2>/dev/null || true
 
-    echo "• Resetting Screen Recording permissions..."
-    tccutil reset ScreenCapture com.apple.Terminal 2>/dev/null || true
-    tccutil reset ScreenCapture com.googlecode.iterm2 2>/dev/null || true
-    tccutil reset ScreenCapture com.microsoft.VSCode 2>/dev/null || true
-    tccutil reset ScreenCapture com.displaymac.server 2>/dev/null || true
-    sudo tccutil reset ScreenCapture com.apple.Terminal 2>/dev/null || true
-    sudo tccutil reset ScreenCapture com.googlecode.iterm2 2>/dev/null || true
+echo "• Resetting Screen Recording permissions..."
+tccutil reset ScreenCapture com.apple.Terminal 2>/dev/null || true
+tccutil reset ScreenCapture com.googlecode.iterm2 2>/dev/null || true
+tccutil reset ScreenCapture com.microsoft.VSCode 2>/dev/null || true
+tccutil reset ScreenCapture com.displaymac.server 2>/dev/null || true
+sudo tccutil reset ScreenCapture com.apple.Terminal 2>/dev/null || true
+sudo tccutil reset ScreenCapture com.googlecode.iterm2 2>/dev/null || true
 
-    echo "• Resetting Input Monitoring permissions..."
-    tccutil reset ListenEvent com.apple.Terminal 2>/dev/null || true
-    tccutil reset ListenEvent com.googlecode.iterm2 2>/dev/null || true
-    sudo tccutil reset ListenEvent com.apple.Terminal 2>/dev/null || true
-fi
+echo "• Resetting Input Monitoring permissions..."
+tccutil reset ListenEvent com.apple.Terminal 2>/dev/null || true
+tccutil reset ListenEvent com.googlecode.iterm2 2>/dev/null || true
+sudo tccutil reset ListenEvent com.apple.Terminal 2>/dev/null || true
+echo "✅ Privacy permissions revoked."
 
 echo ""
 echo "============================================================"

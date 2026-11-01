@@ -115,26 +115,22 @@ flowchart TD
 
 ### 1. macOS Host Server Setup
 
-On your Mac, clone the repository and run the setup scripts:
+On your Mac, clone the repository and run the master installer:
 
-```bash
-# Clone the repository
-git clone https://github.com/aniketlab/DisplayMac.git
-cd DisplayMac/macos-server
+- **Via Finder (Easiest)**: Simply double-click **`Install DisplayMac.command`**.
+- **Via Terminal**:
+  ```bash
+  git clone https://github.com/aniketlab/DisplayMac.git
+  cd DisplayMac
+  ./install.sh
+  ```
 
-# 1. Compile & install the native CoreAudio driver (enables Mac sound to tablet)
-chmod +x ./setup_dynamic_audio.sh
-./setup_dynamic_audio.sh
-
-# 2. Setup direct USB-C link & port forwarding (for sub-1ms wired mode)
-chmod +x ./setup_usb.sh
-./setup_usb.sh
-
-# 3. Start the server
-swift run
-```
-
-*Note: On first launch, macOS will prompt you to grant **Screen Recording** and **Accessibility** permissions to Terminal so it can stream the virtual display and handle pointer input.*
+This single command automatically:
+1. Compiles and installs the native CoreAudio driver (`DisplayMacAudio.driver`).
+2. Configures the Google standalone ADB bridge for zero-lag USB-C transfer.
+3. Compiles `DisplayMacServer` in optimized Release mode.
+4. Registers and activates the 24/7 background LaunchAgent daemon (`com.displaymac.server`).
+5. Sets up your Mac Mini to run headlessly without any physical monitor attached!
 
 ---
 
@@ -230,14 +226,11 @@ DisplayMac/
 │   │   └── network/                 # ConnectionManager & Bonjour client
 │   └── build.gradle.kts
 ├── shared/                          # Wire protocol specification (protocol.md)
-├── install_service.sh               # Permanent background auto-start installer
-├── Install Background Service.command # Double-clickable service installer
-├── stop_server.sh                   # Stop running server & reset hardware audio
-├── reset_server.sh                  # Quick reset helper
-├── reset_permissions.sh             # Revokes macOS Accessibility & Screen Recording grants
-├── Reset Permissions.command        # Double-clickable permission reset utility
-├── uninstall.sh                     # Complete uninstallation wizard
+├── install.sh                       # Master installer (Audio + USB + Server + Service)
+├── Install DisplayMac.command       # Double-clickable macOS master installer
+├── uninstall.sh                     # Complete uninstaller (Drivers + Service + TCC reset)
 ├── Uninstall DisplayMac.command     # Double-clickable macOS uninstaller
+├── stop_server.sh                   # Stop running server & reset hardware audio
 ├── DisplayMac.apk                   # Pre-compiled ready-to-use Android APK
 ├── LICENSE                          # MIT Open Source License
 └── README.md                        # Documentation
@@ -245,23 +238,25 @@ DisplayMac/
 
 ---
 
-## 🛠️ Server Management & Background Service
+## 🛠️ Server Management (Install & Uninstall)
 
-### 1. Permanent Auto-Start (Headless Mode)
-Once setup is complete and you want your Mac mini to automatically run DisplayMac in the background 24/7 without ever opening Terminal:
+### 1. Master Installation (One-Click Setup)
+To install the native dynamic audio driver, USB-C bridge, and configure the 24/7 background headless daemon:
 
-- **Via Finder**: Simply double-click **`Install Background Service.command`**.
+- **Via Finder**: Simply double-click **`Install DisplayMac.command`**.
 - **Via Terminal**:
   ```bash
-  ./install_service.sh
+  ./install.sh
   ```
 
-This:
-1. Compiles `DisplayMacServer` in release mode and installs it to `/usr/local/bin/DisplayMacServer`.
-2. Sets up a persistent macOS `LaunchAgent` daemon (`com.displaymac.server.plist`) with `KeepAlive: true` and `RunAtLoad: true`.
-3. Ensures `DisplayMacServer` **auto-starts upon Mac boot, login, or reboot**, and stays alive after sleep.
-4. Activates sleep-prevention assertions so your Mac mini will never sleep in the middle of a streaming session.
-5. Turns your Galaxy Tab into the **primary display** even when NO physical monitor is plugged into the Mac mini!
+This automatically:
+1. Compiles and installs the native CoreAudio HAL driver (`DisplayMacAudio.driver`).
+2. Configures the Google standalone ADB bridge (`/usr/local/bin/adb`).
+3. Compiles `DisplayMacServer` in release mode and installs it to `/usr/local/bin/DisplayMacServer`.
+4. Sets up the persistent macOS `LaunchAgent` daemon (`com.displaymac.server.plist`) with `KeepAlive: true` and `RunAtLoad: true`.
+5. Ensures DisplayMac **auto-starts upon Mac boot, login, or reboot**, and stays alive after sleep.
+6. Engages sleep-prevention assertions so your Mac mini will never sleep in the middle of a streaming session.
+7. Turns your Galaxy Tab into the **primary display** even when NO physical monitor is plugged into the Mac mini!
 
 #### 📌 Essential Headless Mac Mini Setup (Booting Without a Monitor)
 Because a headless Mac Mini has no physical monitor to type a password at the initial startup login window:
@@ -284,14 +279,16 @@ To temporarily stop the server, pause the background service, release virtual di
 ./stop_server.sh
 ```
 
-### 4. Complete Uninstallation (Factory Clean)
-If you connected a physical monitor and want to permanently purge DisplayMac, its audio drivers, and background services from macOS:
+---
 
+### 4. Complete Uninstallation (Factory Clean)
+If you connected a physical monitor and want to permanently purge DisplayMac, its audio drivers, background services, and privacy permissions from macOS:
+
+- **Via Finder**: Simply double-click **`Uninstall DisplayMac.command`**.
 - **Via Terminal**:
   ```bash
   ./uninstall.sh
   ```
-- **Via Finder**: Simply double-click **`Uninstall DisplayMac.command`**.
 
 This completely:
 1. Kills all running DisplayMac instances.
@@ -301,16 +298,6 @@ This completely:
 5. Clears all ADB socket tunnels and runtime temporary locks.
 6. Revokes **Screen Recording**, **Accessibility**, and **Input Monitoring** privacy permissions for Terminal and DisplayMac.
 7. Leaves your Mac in a pristine, untouched factory-clean state.
-
-### 3. Resetting Privacy Permissions Only
-If you want to reset macOS privacy authorizations without deleting any drivers or files:
-- **Via Terminal**:
-  ```bash
-  ./reset_permissions.sh
-  ```
-- **Via Finder**: Double-click **`Reset Permissions.command`**.
-
-This instructs macOS TCC to revoke Accessibility and Screen Recording permissions for Terminal. The next time you run `swift run`, macOS will display fresh permission prompts.
 
 ---
 
