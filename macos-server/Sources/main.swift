@@ -63,11 +63,9 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Start automatic USB-C cable bridge watchdog (auto-forwards 7100, 7101, 7102 whenever tablet is plugged)
         USBLinkManager.shared.startAutoBridge()
         
-        // Audio Safeguards: Neutral offline state + restore physical speakers/BenQ + Silence Guard
+        // Initialize dynamic audio driver state
         AudioManager.shared.setActive(false)
-        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio (Offline)")
-        AudioManager.shared.restorePhysicalMacAudio()
-        AudioManager.shared.startSilenceGuard()
+        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
         
         // Verify Accessibility permissions for S-Pen and Mouse injection
         checkAccessibilityPermissions()
@@ -148,11 +146,14 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
                 self?.networkServer.broadcastAudioFrame(pcmData: pcmData)
             }
             
+            // Automatically route macOS audio to tablet speakers!
+            AudioManager.shared.saveCurrentOutputDevice()
+            _ = AudioManager.shared.setDefaultOutputDevice(tabletAudio.id)
+            
             let activePhysical = AudioManager.shared.getPhysicalDefaultDeviceName()
-            print("[Audio] 🔈 Dynamic Audio Driver ready: '\(dynamicName)'")
-            print("        • Current physical sound remains on: '\(activePhysical)'")
-            print("        • To listen on tablet, simply select '\(dynamicName)' from macOS Volume menu.")
-            print("        • If tablet is unplugged, sound will automatically fall back to '\(activePhysical)'!")
+            print("[Audio] 🔈 Dynamic Audio Driver active: '\(dynamicName)'")
+            print("        • Sound routed to tablet speakers automatically!")
+            print("        • When disconnected, sound reverts seamlessly to '\(activePhysical)'.")
         } else {
             print("[Audio] 🔈 Tip: Run './setup_dynamic_audio.sh' once to enable the dynamic tablet speaker in your Sound menu.")
         }
@@ -178,7 +179,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         allowSleep()
         AudioManager.shared.setActive(false)
         AudioManager.shared.stopCapturing()
-        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio (Offline)")
+        AudioManager.shared.setDynamicDeviceName("DisplayMac Audio")
         AudioManager.shared.restorePreviousOutputDevice()
         Task {
             await captureEngine.stopCapture()

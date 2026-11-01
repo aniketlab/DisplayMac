@@ -477,18 +477,7 @@ static CFStringRef get_device_name(void) {
     return CFStringCreateWithCString(NULL, "DisplayMac Audio", kCFStringEncodingUTF8);
 }
 
-static inline Boolean is_displaymac_audio_active(void) {
-    FILE *f = fopen("/tmp/displaymac_audio_active.txt", "r");
-    if (f) {
-        int active = 0;
-        if (fscanf(f, "%d", &active) == 1) {
-            fclose(f);
-            return (active == 1);
-        }
-        fclose(f);
-    }
-    return false;
-}
+
 static CFStringRef get_device2_uid(void)      { RETURN_FORMATTED_STRING(kDevice2_UID) }
 static CFStringRef get_device2_name(void)     { RETURN_FORMATTED_STRING(kDevice2_Name) }
 static CFStringRef get_device_model_uid(void) { RETURN_FORMATTED_STRING(kDevice_ModelUID) }
@@ -2682,7 +2671,7 @@ static OSStatus	BlackHole_GetDevicePropertyData(AudioServerPlugInDriverRef inDri
 		case kAudioDevicePropertyDeviceCanBeDefaultDevice:
 		case kAudioDevicePropertyDeviceCanBeDefaultSystemDevice:
 			FailWithAction(inDataSize < sizeof(UInt32), theAnswer = kAudioHardwareBadPropertySizeError, Done, "BlackHole_GetDevicePropertyData: not enough space for the return value of CanBeDefaultDevice for the device");
-			*((UInt32*)outData) = is_displaymac_audio_active() ? 1 : 0;
+			*((UInt32*)outData) = 1;
 			*outDataSize = sizeof(UInt32);
 			break;
 

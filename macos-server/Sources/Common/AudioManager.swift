@@ -12,43 +12,12 @@ public final class AudioManager {
     
     public var isClientConnected = false
     private let nameFilePath = "/tmp/displaymac_audio_name.txt"
-    private let activeFilePath = "/tmp/displaymac_audio_active.txt"
     
     private init() {}
     
     /// Updates the active connection state of the tablet audio device
     public func setActive(_ active: Bool) {
         self.isClientConnected = active
-        let val = active ? "1" : "0"
-        try? val.write(toFile: activeFilePath, atomically: true, encoding: .utf8)
-    }
-    
-    /// Real-time Silence Guard: Intercepts accidental selection of DisplayMac Audio while disconnected
-    /// and immediately snaps default sound back to BenQ monitor or Mac mini speakers in 0ms!
-    public func startSilenceGuard() {
-        var propAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propAddress,
-            DispatchQueue.main
-        ) { [weak self] _, _ in
-            guard let self = self else { return }
-            if let current = self.getDefaultOutputDevice(),
-               let name = self.getDeviceName(for: current) {
-                if !self.isDisplayMacVirtualAudio(name: name) {
-                    // User switched to a physical device (BenQ, Mac mini speakers, Headphones) -> remember it!
-                    self.previousDefaultDeviceID = current
-                } else if !self.isClientConnected {
-                    // Tablet is offline, but DisplayMac Audio was selected -> snap back immediately!
-                    self.restorePhysicalMacAudio()
-                }
-            }
-        }
-        print("[Audio] 🛡️ Real-time Silence Guard active (tracks physical audio memory & prevents offline mute).")
     }
     
     /// Sets the dynamic tablet model name (e.g. "Samsung Galaxy Tab S10 Ultra (DisplayMac)" or "DisplayMac Audio")
