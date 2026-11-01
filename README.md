@@ -1,13 +1,13 @@
-<p align="center">
-  <img src="assets/icon.png" width="160" height="160" alt="DisplayMac App Icon" style="border-radius: 22%;">
-</p>
+<div align="center">
+
+<img src="assets/DisplayMac-Aurora-macOS-1024.png" alt="DisplayMac App Icon" width="180" height="180" style="margin-bottom: 12px;" />
 
 # DisplayMac ⚡🖥️
 
-<p align="center">
-  <strong>Transform your Android Tablet into an Ultra-Low-Latency, 120Hz ProMotion Secondary Display for macOS.</strong><br>
-  <em>Native Apple Silicon Hardware Acceleration • Direct 5 Gbps USB-C & Wi-Fi • Absolute Pointer & S-Pen Navigation • 100% Free & Open Source</em>
-</p>
+### Transform your Android Tablet into an Ultra-Low-Latency, 120Hz ProMotion Secondary Display for macOS.
+*Native Apple Silicon Hardware Acceleration • Direct 5 Gbps USB-C & Wi-Fi • Absolute Pointer & S-Pen Navigation • 100% Free & Open Source*
+
+<br />
 
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
@@ -17,6 +17,11 @@
   <a href="#"><img src="https://img.shields.io/badge/Latency-%3C%201ms%20%28USB--C%29-brightgreen?style=flat-square" alt="Latency"></a>
   <a href="#"><img src="https://img.shields.io/badge/Resolution-2960%C3%971848%20OLED-purple?style=flat-square" alt="Resolution"></a>
 </p>
+
+<img src="assets/DisplayMac-Android-Preview.png" width="80%" alt="DisplayMac Adaptive Icon System" style="border-radius: 12px; margin-top: 15px;" />
+<p><em>Official DisplayMac Adaptive Android Icon System (Circle, Squircle, Material You Themed Monochrome & Safe Zone)</em></p>
+
+</div>
 
 ---
 
