@@ -178,11 +178,18 @@ public final class AudioManager {
         return status == noErr
     }
     
+    /// Determines whether an audio device belongs to DisplayMac virtual audio pipeline
+    public func isDisplayMacVirtualAudio(name: String) -> Bool {
+        let lower = name.lowercased()
+        let keywords = ["displaymac", "samsung", "galaxy", "tab", "blackhole"]
+        return keywords.contains { lower.contains($0) }
+    }
+    
     /// Saves current default audio output so it can be restored on disconnect
     public func saveCurrentOutputDevice() {
         if let current = getDefaultOutputDevice(),
            let name = getDeviceName(for: current),
-           !name.contains("DisplayMac") && !name.contains("Galaxy Tab") && !name.contains("BlackHole") {
+           !isDisplayMacVirtualAudio(name: name) {
             self.previousDefaultDeviceID = current
             print("[Audio] 💾 Saved active physical audio output: '\(name)'")
         }
@@ -206,18 +213,26 @@ public final class AudioManager {
     public func getPhysicalDefaultDevice() -> AudioDeviceID? {
         let devices = getOutputDevices()
         for dev in devices {
-            if !dev.name.contains("DisplayMac") && !dev.name.contains("Galaxy Tab") && !dev.name.contains("BlackHole") {
+            if !isDisplayMacVirtualAudio(name: dev.name) {
                 return dev.id
             }
         }
         return nil
     }
     
+    /// Returns the name of the active physical Mac audio output device
+    public func getPhysicalDefaultDeviceName() -> String {
+        if let id = getPhysicalDefaultDevice(), let name = getDeviceName(for: id) {
+            return name
+        }
+        return "Physical Hardware"
+    }
+    
     /// Ensures that physical Mac hardware (Mac mini speakers or BenQ) is default, undoing any rogue selection
     public func restorePhysicalMacAudio() {
         if let currentDefault = getDefaultOutputDevice(),
            let devName = getDeviceName(for: currentDefault),
-           (devName.contains("DisplayMac") || devName.contains("Galaxy Tab") || devName.contains("BlackHole")) {
+           isDisplayMacVirtualAudio(name: devName) {
             if let physicalID = getPhysicalDefaultDevice() {
                 _ = setDefaultOutputDevice(physicalID)
                 let physName = getDeviceName(for: physicalID) ?? "Physical Hardware"

@@ -114,9 +114,15 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
             _ = AudioManager.shared.startCapturing(deviceID: tabletAudio.id) { [weak self] pcmData in
                 self?.networkServer.broadcastAudioFrame(pcmData: pcmData)
             }
+            
+            // Automatically switch macOS default audio to tablet
+            _ = AudioManager.shared.setDefaultOutputDevice(tabletAudio.id)
+            
+            let activePhysical = AudioManager.shared.getPhysicalDefaultDeviceName()
             print("[Audio] 🔈 Dynamic Audio Driver active: '\(dynamicName)'")
-            print("        • Select '\(dynamicName)' from macOS Sound menu anytime to stream sound to tablet!")
-            print("        • Your Mac mini & BenQ physical audio is 100% untouched and preserved.")
+            print("        • Sound automatically routed to tablet speakers!")
+            print("        • Physical audio source recorded: '\(activePhysical)'")
+            print("        • Upon tablet disconnect, sound will switch back to '\(activePhysical)' automatically!")
         } else {
             print("[Audio] 🔈 Tip: Run './setup_dynamic_audio.sh' once to enable the dynamic tablet speaker in your Sound menu.")
         }
@@ -209,11 +215,15 @@ func getLocalIPs() -> [String] {
 signal(SIGINT) { _ in
     print("\n[Host] Shutting down DisplayMac Server gracefully...")
     VirtualDisplayManager.shared.releaseVirtualDisplay()
+    AudioManager.shared.restorePreviousOutputDevice()
+    AudioManager.shared.restorePhysicalMacAudio()
     exit(0)
 }
 
 signal(SIGTERM) { _ in
     VirtualDisplayManager.shared.releaseVirtualDisplay()
+    AudioManager.shared.restorePreviousOutputDevice()
+    AudioManager.shared.restorePhysicalMacAudio()
     exit(0)
 }
 
