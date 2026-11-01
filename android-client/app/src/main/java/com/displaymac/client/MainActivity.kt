@@ -494,6 +494,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        hideSystemUI()
+        detectAndShowDeviceInfo()
+
+        if (connectionManager?.isConnected == true) {
+            // While streaming: keep socket & video pipeline alive without interruption
+            val holder = surfaceHolderRef ?: videoSurface.holder
+            if (holder.surface.isValid) {
+                ensureDecoderActive(holder)
+                connectionManager?.requestKeyframe()
+            }
+        } else {
+            // On dashboard: recreate to seamlessly switch between compact (1-col) and wide (2-col) layout
+            recreate()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         pulseAnimator?.cancel()
