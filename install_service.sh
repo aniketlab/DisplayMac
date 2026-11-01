@@ -108,6 +108,29 @@ echo "• It will AUTO-START every time you boot or restart your Mac mini."
 echo "• Even after sleep, reboot, or cable unplug, it re-connects automatically."
 echo "• You NEVER need to open Terminal again!"
 echo ""
-echo "Log file: tail -f /tmp/displaymac.log"
-echo "To stop:  ./stop_server.sh"
+
+# Check FileVault and Automatic Login requirements for true headless operation
+echo "------------------------------------------------------------"
+echo "📌 CRITICAL HEADLESS MAC CONFIGURATION (Monitor-Free Boot):"
+echo "------------------------------------------------------------"
+if command -v fdesetup &>/dev/null; then
+    FV_STATUS=$(fdesetup status 2>/dev/null || true)
+    if [[ "$FV_STATUS" =~ "On" ]]; then
+        echo "⚠️ FileVault is currently ON:"
+        echo "   macOS disk encryption prevents any app from starting before login."
+        echo "   To boot headlessly without a physical monitor, turn FileVault OFF in:"
+        echo "   👉 System Settings > Privacy & Security > FileVault"
+        echo ""
+    fi
+fi
+
+echo "To allow your Mac mini to start DisplayMac when NO monitor is plugged in:"
+echo " 1. Open: System Settings > Users & Groups"
+echo " 2. Under 'Automatically log in as': Select your user account ($USER)"
+echo " 3. Enter your password to save."
+echo ""
+echo "🛡️ Want Password Security on Startup?"
+echo "   Once Automatic Login is enabled, DisplayMac will connect to your Galaxy"
+echo "   Tab right after boot. You can lock your screen anytime (or use lock on sleep),"
+echo "   and type your password directly from your Galaxy Tab!"
 echo "============================================================"

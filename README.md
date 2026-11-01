@@ -263,6 +263,12 @@ This:
 4. Activates sleep-prevention assertions so your Mac mini will never sleep in the middle of a streaming session.
 5. Turns your Galaxy Tab into the **primary display** even when NO physical monitor is plugged into the Mac mini!
 
+#### 📌 Essential Headless Mac Mini Setup (Booting Without a Monitor)
+Because a headless Mac Mini has no physical monitor to type a password at the initial startup login window:
+1. **Disable FileVault** (if enabled): Go to **System Settings > Privacy & Security > FileVault** and turn it **Off** (macOS disk encryption prevents any application or network driver from launching before login).
+2. **Enable Automatic Login**: Go to **System Settings > Users & Groups**, and set **"Automatically log in as"** to your user account.
+3. *Security Tip*: Once Automatic Login is enabled, DisplayMac will connect to your Galaxy Tab right after power on. You can lock your screen anytime and type your password securely from your tablet!
+
 ---
 
 ### 2. Smart Auto-Reconnect Watchdog (Zero-Click Recovery)
