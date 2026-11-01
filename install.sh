@@ -17,13 +17,13 @@ echo "This installer will configure everything in one single pass:"
 echo " 1. Native Dynamic Audio Driver (compiles & installs DisplayMacAudio.driver)."
 echo " 2. Google Portable ADB USB-C bridge (/usr/local/bin/adb)."
 echo " 3. DisplayMacServer 120Hz host binary (compiles in Release mode)."
-echo " 4. 24/7 Auto-Start LaunchAgent service (runs headlessly on boot/restart)."
+echo " 4. 24/7 Auto-Start LaunchAgent service (runs headlessly in background)."
 echo " 5. Accessibility & Screen Recording permission verification."
 echo ""
 echo "After installation:"
-echo " • DisplayMac will auto-start whenever you power on or restart your Mac."
-echo " • Audio dynamically streams to your Galaxy Tab AKG quad speakers."
-echo " • You will NEVER need to open Terminal or run 'swift run' again."
+echo " • DisplayMac will run 24/7 in the background completely detached from Terminal."
+echo " • Closing Terminal will NOT stop the server."
+echo " • Sound stays on your physical speakers; switch to tablet in Sound Menu whenever you want!"
 echo " • Just plug the USB-C cable into your Galaxy Tab, and the display appears!"
 echo ""
 
@@ -77,7 +77,7 @@ sudo chmod +x "$INSTALL_BIN"
 sudo codesign --force --sign - --identifier "com.displaymac.server" "$INSTALL_BIN" 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
-# 4. Configure & Load 24/7 LaunchAgent Service
+# 4. Configure & Load 24/7 LaunchAgent Service (Completely Detached from Terminal)
 # ------------------------------------------------------------------------------
 echo ""
 echo "[4/5] Configuring macOS LaunchAgent daemon (24/7 Auto-Start)..."
@@ -116,12 +116,34 @@ cat <<EOF > "$PLIST_FILE"
 </plist>
 EOF
 
-# Stop previous instance & load fresh service
-pkill -f "DisplayMacServer" 2>/dev/null || true
+# Kill any previous manual or orphaned instances
+pkill -9 -f "DisplayMacServer" 2>/dev/null || true
 sleep 0.5
+
+# Unload old plist if exists
+USER_ID=$(id -u)
+launchctl bootout "gui/$USER_ID/com.displaymac.server" 2>/dev/null || true
 launchctl unload "$PLIST_FILE" 2>/dev/null || true
-launchctl load -w "$PLIST_FILE"
-echo "✅ Background service registered and running!"
+sleep 0.5
+
+# Register and start daemon via launchd (completely detached from Terminal session)
+if launchctl bootstrap "gui/$USER_ID" "$PLIST_FILE" 2>/dev/null; then
+    echo "• Registered with launchd via modern bootstrap (gui/$USER_ID)."
+else
+    launchctl load -w "$PLIST_FILE" 2>/dev/null || true
+    echo "• Registered with launchd via load."
+fi
+
+# Kickstart service to ensure it runs immediately in background
+launchctl kickstart -k "gui/$USER_ID/com.displaymac.server" 2>/dev/null || true
+
+sleep 1
+PID=$(pgrep -f "DisplayMacServer" || true)
+if [ -n "$PID" ]; then
+    echo "✅ Background daemon is active and running independently (PID: $PID)!"
+else
+    echo "• Background daemon scheduled with launchd."
+fi
 
 # ------------------------------------------------------------------------------
 # 5. Permission & Headless Check
@@ -129,14 +151,15 @@ echo "✅ Background service registered and running!"
 echo ""
 echo "[5/5] Checking macOS Permissions & Headless Configuration..."
 
-# Trigger permission prompt if not yet authorized
+# Trigger permission prompt if not yet authorized (runs instantly and exits)
 "$INSTALL_BIN" --check-permissions 2>/dev/null || true
 
 echo ""
 echo "============================================================"
 echo "  🎉 DisplayMac has been 100% COMPLETELY INSTALLED!"
 echo "============================================================"
-echo "• The server is already running in the background right now."
+echo "• The server is running 24/7 in the background right now."
+echo "• You can SAFELEY CLOSE or TERMINATE this Terminal window!"
 echo "• Dynamic Audio is ready in your macOS Sound Menu."
 echo "• USB-C 0.5ms ultra-low latency bridge is active."
 echo "• It will AUTO-START every time you boot or restart your Mac mini."

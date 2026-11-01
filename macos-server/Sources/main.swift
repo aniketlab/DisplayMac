@@ -146,14 +146,14 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
                 self?.networkServer.broadcastAudioFrame(pcmData: pcmData)
             }
             
-            // Automatically route macOS audio to tablet speakers!
+            // Save active physical output for automatic fallback
             AudioManager.shared.saveCurrentOutputDevice()
-            _ = AudioManager.shared.setDefaultOutputDevice(tabletAudio.id)
             
             let activePhysical = AudioManager.shared.getPhysicalDefaultDeviceName()
-            print("[Audio] 🔈 Dynamic Audio Driver active: '\(dynamicName)'")
-            print("        • Sound routed to tablet speakers automatically!")
-            print("        • When disconnected, sound reverts seamlessly to '\(activePhysical)'.")
+            print("[Audio] 🔈 Dynamic Audio Driver ready: '\(dynamicName)'")
+            print("        • Current physical sound remains on: '\(activePhysical)'")
+            print("        • To listen on tablet, simply select '\(dynamicName)' from macOS Volume menu.")
+            print("        • If tablet is unplugged, sound will automatically fall back to '\(activePhysical)'!")
         } else {
             print("[Audio] 🔈 Tip: Run './setup_dynamic_audio.sh' once to enable the dynamic tablet speaker in your Sound menu.")
         }
@@ -266,6 +266,12 @@ func checkAccessibilityPermissions() {
     } else {
         print("✅ [Input] Accessibility permission verified (S-Pen & Mouse injection active).")
     }
+}
+
+// Check for command-line helper flags
+if CommandLine.arguments.contains("--check-permissions") {
+    checkAccessibilityPermissions()
+    exit(0)
 }
 
 // Start Server Loop
