@@ -57,9 +57,11 @@
                         android:gravity="center_vertical">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@drawable/ic_logomark" />
+                            android:layout_width="34dp"
+                            android:layout_height="22dp"
+                            android:adjustViewBounds="true"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/brand_logo" />
 
                         <TextView
                             android:layout_width="wrap_content"
