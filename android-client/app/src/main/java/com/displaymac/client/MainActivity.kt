@@ -3,10 +3,15 @@ package com.displaymac.client
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
+import android.hardware.display.DisplayManager
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.view.Display
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageView
@@ -19,37 +24,53 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.displaymac.client.audio.LowLatencyAudioPlayer
-import com.displaymac.client.decoder.LowLatencyVideoDecoder
-import com.displaymac.client.display.DisplayModeManager
 import com.displaymac.client.input.StylusInputHandler
 import com.displaymac.client.network.ConnectionManager
+import com.displaymac.client.decoder.LowLatencyVideoDecoder
+import com.displaymac.client.display.DisplayModeManager
+import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
+    // Streaming Layer Views
     private lateinit var videoSurface: SurfaceView
-    private lateinit var dashboardLayout: View
+    private lateinit var dashboardLayout: ViewGroup
     private lateinit var hudOverlay: View
     private lateinit var statusText: TextView
     private lateinit var fpsText: TextView
     private lateinit var speedText: TextView
     private lateinit var btnDisconnect: AppCompatButton
 
-    private lateinit var radarIcon: ImageView
+    // Dashboard Hero & Status Views
+    private lateinit var radarIcon: View
     private lateinit var dashStatusTitle: TextView
     private lateinit var dashStatusSub: TextView
+    private lateinit var panelSpecsBadge: TextView
+
+    // USB Connection Card Views
     private lateinit var btnConnectUsb: AppCompatButton
-    private lateinit var btnConnectWifi: AppCompatButton
-    private lateinit var manualIpInput: EditText
-    private lateinit var tvWifiDiscoveryStatus: TextView
     private lateinit var searchProgress: ProgressBar
+    private lateinit var ivUsbStatusIcon: ImageView
     private lateinit var tvStatusMessage: TextView
 
+    // Wi-Fi Connection Card Views
+    private lateinit var btnConnectWifi: AppCompatButton
+    private lateinit var tvDiscoveredMacTitle: TextView
+    private lateinit var tvWifiDiscoveryStatus: TextView
+    private lateinit var ivWifiFoundCheck: ImageView
+    private lateinit var manualIpInput: EditText
+    private lateinit var btnToggleManualIp: TextView
+
+    // Core Managers & Engines
     private lateinit var displayModeManager: DisplayModeManager
     private var videoDecoder: LowLatencyVideoDecoder? = null
     private var audioPlayer: LowLatencyAudioPlayer? = null
     private var connectionManager: ConnectionManager? = null
     private var pulseAnimator: ObjectAnimator? = null
     private var surfaceHolderRef: SurfaceHolder? = null
+
+    private var discoveredBonjourIp: String? = null
+    private var isManualIpVisible: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +89,9 @@ class MainActivity : AppCompatActivity() {
 
         // Bind all UI Views
         bindViews()
+
+        // Read dynamic tablet specifications & update top pill
+        detectAndShowDeviceInfo()
 
         // Lock to Samsung Galaxy Tab S10 Ultra 120Hz native refresh rate
         displayModeManager = DisplayModeManager(this)
@@ -108,12 +132,41 @@ class MainActivity : AppCompatActivity() {
         radarIcon = findViewById(R.id.radarIcon)
         dashStatusTitle = findViewById(R.id.dashStatusTitle)
         dashStatusSub = findViewById(R.id.dashStatusSub)
+        panelSpecsBadge = findViewById(R.id.panelSpecsBadge)
+
         btnConnectUsb = findViewById(R.id.btnConnectUsb)
-        btnConnectWifi = findViewById(R.id.btnConnectWifi)
-        manualIpInput = findViewById(R.id.manualIpInput)
-        tvWifiDiscoveryStatus = findViewById(R.id.tvWifiDiscoveryStatus)
         searchProgress = findViewById(R.id.searchProgress)
+        ivUsbStatusIcon = findViewById(R.id.ivUsbStatusIcon)
         tvStatusMessage = findViewById(R.id.tvStatusMessage)
+
+        btnConnectWifi = findViewById(R.id.btnConnectWifi)
+        tvDiscoveredMacTitle = findViewById(R.id.tvDiscoveredMacTitle)
+        tvWifiDiscoveryStatus = findViewById(R.id.tvWifiDiscoveryStatus)
+        ivWifiFoundCheck = findViewById(R.id.ivWifiFoundCheck)
+        manualIpInput = findViewById(R.id.manualIpInput)
+        btnToggleManualIp = findViewById(R.id.btnToggleManualIp)
+    }
+
+    /**
+     * Reads the tablet's friendly name, physical resolution, and native refresh rate.
+     */
+    private fun detectAndShowDeviceInfo() {
+        try {
+            val deviceName = Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
+                ?.takeIf { it.isNotBlank() }
+                ?: Build.MODEL
+
+            val display = getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
+            val mode = display.mode
+            val w = maxOf(mode.physicalWidth, mode.physicalHeight)
+            val h = minOf(mode.physicalWidth, mode.physicalHeight)
+            val hz = display.refreshRate.roundToInt()
+
+            panelSpecsBadge.text = "$deviceName · $w × $h · $hz Hz"
+            dashStatusSub.text = "Pick how to connect your $deviceName"
+        } catch (_: Exception) {
+            panelSpecsBadge.text = "Galaxy Tab S10 Ultra · 2960 × 1848 · 120 Hz"
+        }
     }
 
     private fun setupBackNavigation() {
@@ -125,7 +178,7 @@ class MainActivity : AppCompatActivity() {
                 } else if (connectionManager?.isSearching == true) {
                     connectionManager?.stopAutoConnect()
                     hideSearchingUI()
-                    showStatusMessage("Auto-search stopped.", isError = false)
+                    showStatusMessage("Auto-search paused.", isError = false)
                 } else {
                     // On dashboard, minimize app smoothly without killing process
                     moveTaskToBack(true)
@@ -135,12 +188,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupActionButtons() {
-        // 1. USB-C Cable Connection Button (Toggles search / stop search)
+        // 1. USB-C Cable Connection Button (Toggles search or stop search)
         btnConnectUsb.setOnClickListener {
             if (connectionManager?.isSearching == true) {
                 connectionManager?.stopAutoConnect()
                 hideSearchingUI()
-                showStatusMessage("Auto-search stopped. Tap button to search again.", isError = false)
+                showStatusMessage("Search paused. Tap button to search again.", isError = false)
             } else {
                 startUsbSearch()
             }
@@ -148,15 +201,30 @@ class MainActivity : AppCompatActivity() {
 
         // 2. Wi-Fi Wireless Connection Button
         btnConnectWifi.setOnClickListener {
-            val ip = manualIpInput.text.toString().trim()
+            val ip = if (isManualIpVisible) {
+                manualIpInput.text.toString().trim()
+            } else {
+                discoveredBonjourIp ?: manualIpInput.text.toString().trim()
+            }
+
             if (ip.isEmpty()) {
                 showStatusMessage("⚠️ Please enter Mac mini IP address", isError = true)
+                manualIpInput.visibility = View.VISIBLE
+                isManualIpVisible = true
+                btnToggleManualIp.text = "Use found Mac"
                 return@setOnClickListener
             }
             startWifiSearch(ip)
         }
 
-        // 3. Floating HUD Disconnect Button
+        // 3. Manual IP Toggle Button
+        btnToggleManualIp.setOnClickListener {
+            isManualIpVisible = !isManualIpVisible
+            manualIpInput.visibility = if (isManualIpVisible) View.VISIBLE else View.GONE
+            btnToggleManualIp.text = if (isManualIpVisible) "Use the found Mac" else "Enter IP manually"
+        }
+
+        // 4. Floating HUD Disconnect Button
         btnDisconnect.setOnClickListener {
             connectionManager?.disconnect()
         }
@@ -167,7 +235,7 @@ class MainActivity : AppCompatActivity() {
         if (holder.surface.isValid) {
             ensureDecoderActive(holder)
         }
-        showSearchingUI("🔄 Waiting for Mac mini over USB-C...\n(Plug cable — display will connect automatically)")
+        showSearchingUI("Looking for your Mac over USB-C...")
         connectionManager?.startUsbAutoConnect()
     }
 
@@ -176,7 +244,7 @@ class MainActivity : AppCompatActivity() {
         if (holder.surface.isValid) {
             ensureDecoderActive(holder)
         }
-        showSearchingUI("🔄 Connecting to Mac mini at $ip over Wi-Fi...")
+        showSearchingUI("Connecting to Mac at $ip over Wi-Fi...")
         connectionManager?.startWifiAutoConnect(ip)
     }
 
@@ -194,17 +262,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSearchingUI(message: String) {
         searchProgress.visibility = View.VISIBLE
+        ivUsbStatusIcon.visibility = View.GONE
         tvStatusMessage.visibility = View.VISIBLE
         tvStatusMessage.text = message
-        tvStatusMessage.setTextColor(getColor(R.color.status_cyan))
-        btnConnectUsb.text = "✕ Stop Searching"
+        tvStatusMessage.setTextColor(getColor(R.color.aurora_ink_tertiary))
+
+        btnConnectUsb.text = "Stop searching"
+        btnConnectUsb.setBackgroundResource(R.drawable.btn_aurora_outlined)
+        btnConnectUsb.setTextColor(getColor(R.color.aurora_blue))
         btnConnectUsb.isEnabled = true
         btnConnectWifi.isEnabled = false
     }
 
     private fun hideSearchingUI() {
         searchProgress.visibility = View.GONE
-        btnConnectUsb.text = "⚡ Connect via USB Cable"
+        ivUsbStatusIcon.visibility = View.VISIBLE
+        ivUsbStatusIcon.setImageResource(R.drawable.ic_pause)
+
+        btnConnectUsb.text = "Connect with USB-C"
+        btnConnectUsb.setBackgroundResource(R.drawable.btn_aurora_primary)
+        btnConnectUsb.setTextColor(getColor(R.color.white))
         btnConnectUsb.isEnabled = true
         btnConnectWifi.isEnabled = true
     }
@@ -212,7 +289,7 @@ class MainActivity : AppCompatActivity() {
     private fun showStatusMessage(message: String, isError: Boolean) {
         tvStatusMessage.visibility = View.VISIBLE
         tvStatusMessage.text = message
-        tvStatusMessage.setTextColor(if (isError) getColor(R.color.status_red) else getColor(R.color.status_cyan))
+        tvStatusMessage.setTextColor(if (isError) getColor(R.color.aurora_error) else getColor(R.color.aurora_ink_tertiary))
     }
 
     private fun setupSurface() {
@@ -245,6 +322,12 @@ class MainActivity : AppCompatActivity() {
             onConnected = { mode ->
                 hideSearchingUI()
 
+                // Update USB card status to connected
+                searchProgress.visibility = View.GONE
+                ivUsbStatusIcon.visibility = View.VISIBLE
+                ivUsbStatusIcon.setImageResource(R.drawable.ic_check_circle)
+                tvStatusMessage.text = "Streaming at 120 Hz"
+
                 // Ensure decoder is active and surface is ready
                 val holder = surfaceHolderRef ?: videoSurface.holder
                 if (holder.surface.isValid) {
@@ -269,7 +352,7 @@ class MainActivity : AppCompatActivity() {
                 hudOverlay.animate().alpha(1f).setDuration(250).start()
 
                 statusText.text = "Connected ($mode)"
-                statusText.setTextColor(getColor(R.color.status_green))
+                statusText.setTextColor(getColor(R.color.aurora_success))
                 fpsText.text = "120 FPS"
             },
             onDisconnected = { wasUnexpected ->
@@ -284,18 +367,19 @@ class MainActivity : AppCompatActivity() {
                 videoDecoder = null
 
                 if (wasUnexpected) {
-                    showSearchingUI("⚡ Mac disconnected or restarting. Waiting to reconnect...")
+                    showSearchingUI("Waiting for Mac to reconnect...")
                 } else {
                     hideSearchingUI()
-                    showStatusMessage("Session ended. Tap USB or Wi-Fi to connect.", isError = false)
+                    showStatusMessage("Session ended. Ready to connect.", isError = false)
                 }
             },
             onSearchingStatus = { attempt, mode ->
                 tvStatusMessage.visibility = View.VISIBLE
-                tvStatusMessage.text = "🔄 Waiting for Mac mini over $mode...\n(Auto-probing heartbeat... #$attempt)"
-                tvStatusMessage.setTextColor(getColor(R.color.status_cyan))
+                tvStatusMessage.text = "Looking for your Mac over USB-C... (#$attempt)"
+                tvStatusMessage.setTextColor(getColor(R.color.aurora_ink_tertiary))
                 searchProgress.visibility = View.VISIBLE
-                btnConnectUsb.text = "✕ Stop Searching"
+                ivUsbStatusIcon.visibility = View.GONE
+                btnConnectUsb.text = "Stop searching"
             },
             onVideoFrame = { nalu, ptsUs, isKeyframe ->
                 videoDecoder?.decodeNalu(nalu, ptsUs, isKeyframe)
@@ -320,21 +404,22 @@ class MainActivity : AppCompatActivity() {
 
         // Start Background Bonjour mDNS Discovery (Discovers Mac IP without auto-connecting)
         connManager.startMdnsDiscovery { discoveredIp ->
+            this.discoveredBonjourIp = discoveredIp
             if (manualIpInput.text.isNullOrEmpty()) {
                 manualIpInput.setText(discoveredIp)
             }
-            tvWifiDiscoveryStatus.text = "• Both devices on same Wi-Fi router\n• ✅ Discovered Mac: $discoveredIp\n• Tap 'Connect via Wi-Fi' below"
+            tvWifiDiscoveryStatus.text = "$discoveredIp · found via Bonjour"
+            ivWifiFoundCheck.visibility = View.VISIBLE
         }
     }
 
     private fun startRadarPulse() {
         pulseAnimator = ObjectAnimator.ofPropertyValuesHolder(
             radarIcon,
-            PropertyValuesHolder.ofFloat(View.SCALE_X, 1.0f, 1.08f),
-            PropertyValuesHolder.ofFloat(View.SCALE_Y, 1.0f, 1.08f),
-            PropertyValuesHolder.ofFloat(View.ALPHA, 0.85f, 1.0f)
+            PropertyValuesHolder.ofFloat(View.SCALE_X, 1.0f, 1.06f),
+            PropertyValuesHolder.ofFloat(View.SCALE_Y, 1.0f, 1.06f)
         ).apply {
-            duration = 1400
+            duration = 1600
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.REVERSE
             start()

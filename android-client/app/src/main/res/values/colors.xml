@@ -2,11 +2,32 @@
 <resources>
     <color name="black">#000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="accent_blue">#0A84FF</color>
+    
+    <!-- Aurora Theme Colors from Design Prototype -->
+    <color name="aurora_surface">#F6F7FC</color>
+    <color name="aurora_card">#FFFFFF</color>
+    <color name="aurora_card_border">#1A1E2864</color>
+    <color name="aurora_chip">#F0F1F8</color>
+    <color name="aurora_outline">#C9CFF5</color>
+    <color name="aurora_ink">#1B1E2E</color>
+    <color name="aurora_ink_secondary">#6B7090</color>
+    <color name="aurora_ink_tertiary">#4A4F70</color>
+    <color name="aurora_blue">#3B4DE0</color>
+    <color name="aurora_blue_dark">#2A38B0</color>
+    <color name="aurora_blue_container">#E6E9FF</color>
+    <color name="aurora_pink">#FF6AB5</color>
+    <color name="aurora_sky">#5AD1FF</color>
+    <color name="aurora_sky_container">#DFF3FF</color>
+    <color name="aurora_sky_dark">#0B5E8A</color>
+    <color name="aurora_success">#1F9D6B</color>
+    <color name="aurora_error">#D93A5B</color>
+    
+    <!-- HUD & Legacy Compatibility Colors -->
     <color name="card_bg">#B31C1C1E</color>
-    <color name="status_green">#30D158</color>
-    <color name="status_red">#EF4444</color>
-    <color name="status_cyan">#38BDF8</color>
-    <color name="status_gray">#94A3B8</color>
+    <color name="accent_blue">#0A84FF</color>
     <color name="usb_accent">#10B981</color>
+    <color name="status_green">#1F9D6B</color>
+    <color name="status_red">#D93A5B</color>
+    <color name="status_cyan">#3B4DE0</color>
+    <color name="status_gray">#6B7090</color>
 </resources>

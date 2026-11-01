@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#070A0F">
+    android:background="#F6F7FC">
 
     <!-- 120Hz Hardware Accelerated Video Surface -->
     <SurfaceView
@@ -11,295 +11,739 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Professional Dashboard UI (Visible when not streaming) -->
-    <LinearLayout
+    <!-- Aurora Dashboard Container (Visible when not streaming) -->
+    <FrameLayout
         android:id="@+id/dashboardLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:background="#070A0F"
-        android:padding="28dp"
-        android:gravity="center_horizontal">
+        android:layout_height="match_parent">
 
-        <!-- Top Header Bar -->
-        <RelativeLayout
+        <!-- Ambient Aurora Backdrop with soft colored blobs -->
+        <com.displaymac.client.ui.AuroraBackgroundView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="match_parent" />
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:src="@drawable/ic_launcher" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:text="DisplayMac"
-                    android:textColor="#FFFFFF"
-                    android:textSize="22sp"
-                    android:fontFamily="sans-serif-black" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/badge_pill"
-                    android:paddingStart="10dp"
-                    android:paddingTop="3dp"
-                    android:paddingEnd="10dp"
-                    android:paddingBottom="3dp"
-                    android:text="PRO 120Hz"
-                    android:textColor="#38BDF8"
-                    android:textSize="11sp"
-                    android:fontFamily="sans-serif-bold" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/panelSpecsBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:background="@drawable/badge_pill"
-                android:paddingStart="14dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="14dp"
-                android:paddingBottom="6dp"
-                android:text="14.6&quot; Dynamic AMOLED 2X • 2960×1848"
-                android:textColor="#94A3B8"
-                android:textSize="12sp"
-                android:fontFamily="sans-serif-medium" />
-        </RelativeLayout>
-
-        <!-- Center Connection Control Area -->
+        <!-- Main Dashboard Content ScrollView -->
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:fillViewport="true">
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:gravity="center"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp">
+                android:paddingStart="24dp"
+                android:paddingTop="16dp"
+                android:paddingEnd="24dp"
+                android:paddingBottom="20dp"
+                android:gravity="center_horizontal">
 
-                <ImageView
-                    android:id="@+id/radarIcon"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:src="@drawable/ic_mac_mini" />
+                <!-- 1. Top Header Bar -->
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp">
 
-                <TextView
-                    android:id="@+id/dashStatusTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="Connect to Mac mini M4"
-                    android:textColor="#FFFFFF"
-                    android:textSize="22sp"
-                    android:fontFamily="sans-serif-bold" />
+                    <!-- Left: Brand Logo & Title -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerVertical="true"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
 
-                <TextView
-                    android:id="@+id/dashStatusSub"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Choose how you want to connect your Galaxy Tab S10 Ultra:"
-                    android:textColor="#94A3B8"
-                    android:textSize="13sp" />
+                        <ImageView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@mipmap/ic_launcher" />
 
-                <!-- TWO EXPLICIT CONNECTION MODE CARDS -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:text="DisplayMac"
+                            android:textColor="@color/aurora_ink"
+                            android:textSize="17sp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
+
+                    <!-- Right: Tablet Specs Pill -->
+                    <LinearLayout
+                        android:id="@+id/panelSpecsPill"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/pill_top_specs"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:src="@drawable/ic_device_tablet" />
+
+                        <TextView
+                            android:id="@+id/panelSpecsBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="Galaxy Tab S10 Ultra · 2960 × 1848 · 120 Hz"
+                            android:textColor="@color/aurora_ink_tertiary"
+                            android:textSize="12sp"
+                            android:fontFamily="sans-serif" />
+                    </LinearLayout>
+                </RelativeLayout>
+
+                <!-- Center Content Column (Constrained to max width ~580dp) -->
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center"
-                    android:layout_marginTop="20dp">
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:maxWidth="580dp"
+                    android:paddingTop="8dp">
 
-                    <!-- CARD 1: USB-C DATA CABLE (Recommended) -->
+                    <!-- 2. Hero Section -->
                     <LinearLayout
-                        android:layout_width="340dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/card_highlight_usb"
                         android:orientation="vertical"
-                        android:padding="20dp"
-                        android:layout_marginEnd="20dp">
+                        android:gravity="center_horizontal"
+                        android:paddingBottom="16dp">
+
+                        <!-- Mac Mini Desktop Icon Ring -->
+                        <FrameLayout
+                            android:id="@+id/radarIcon"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:background="@drawable/ring_hero">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_device_desktop" />
+                        </FrameLayout>
 
                         <TextView
+                            android:id="@+id/dashStatusTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="⚡ RECOMMENDED • 0ms LAG"
-                            android:textColor="#10B981"
-                            android:textSize="11sp"
-                            android:fontFamily="sans-serif-black" />
+                            android:layout_marginTop="10dp"
+                            android:text="Connect to Mac"
+                            android:textColor="@color/aurora_ink"
+                            android:textSize="22sp"
+                            android:fontFamily="sans-serif-medium" />
 
                         <TextView
+                            android:id="@+id/dashStatusSub"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="USB-C Data Cable"
-                            android:textColor="#FFFFFF"
-                            android:textSize="18sp"
-                            android:fontFamily="sans-serif-bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="• Direct 5 Gbps physical wire\n• 0.5ms sub-millisecond wire latency\n• Full 85 Mbps 120 FPS Retina quality\n• Target: 127.0.0.1 (ADB tunnel)"
-                            android:textColor="#94A3B8"
-                            android:textSize="12sp"
-                            android:lineSpacingExtra="3dp" />
-
-                        <androidx.appcompat.widget.AppCompatButton
-                            android:id="@+id/btnConnectUsb"
-                            android:layout_width="match_parent"
-                            android:layout_height="46dp"
-                            android:layout_marginTop="18dp"
-                            android:background="@drawable/btn_usb_gradient"
-                            android:text="⚡ Connect via USB Cable"
-                            android:textAllCaps="false"
-                            android:textColor="#FFFFFF"
-                            android:textSize="14sp"
-                            android:fontFamily="sans-serif-bold" />
-                    </LinearLayout>
-
-                    <!-- CARD 2: WI-FI WIRELESS LINK -->
-                    <LinearLayout
-                        android:layout_width="340dp"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/card_highlight_wifi"
-                        android:orientation="vertical"
-                        android:padding="20dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="📶 WIRELESS LINK"
-                            android:textColor="#38BDF8"
-                            android:textSize="11sp"
-                            android:fontFamily="sans-serif-black" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:text="Local Wi-Fi Network"
-                            android:textColor="#FFFFFF"
-                            android:textSize="18sp"
-                            android:fontFamily="sans-serif-bold" />
-
-                        <TextView
-                            android:id="@+id/tvWifiDiscoveryStatus"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="• Both devices on same Wi-Fi router\n• Auto-discovering Mac via Bonjour...\n• Smooth 40 Mbps 120 FPS link"
-                            android:textColor="#94A3B8"
-                            android:textSize="12sp"
-                            android:lineSpacingExtra="3dp" />
-
-                        <EditText
-                            android:id="@+id/manualIpInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="42dp"
-                            android:layout_marginTop="12dp"
-                            android:background="@drawable/edittext_bg"
-                            android:hint="Mac IP (e.g. 192.168.1.17)"
-                            android:textColorHint="#475569"
-                            android:textColor="#FFFFFF"
+                            android:layout_marginTop="2dp"
+                            android:text="Pick how to connect your Galaxy Tab S10 Ultra"
+                            android:textColor="@color/aurora_ink_secondary"
                             android:textSize="13sp"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="12dp"
-                            android:inputType="textUri"
-                            android:singleLine="true" />
-
-                        <androidx.appcompat.widget.AppCompatButton
-                            android:id="@+id/btnConnectWifi"
-                            android:layout_width="match_parent"
-                            android:layout_height="46dp"
-                            android:layout_marginTop="12dp"
-                            android:background="@drawable/btn_primary"
-                            android:text="📶 Connect via Wi-Fi"
-                            android:textAllCaps="false"
-                            android:textColor="#FFFFFF"
-                            android:textSize="14sp"
-                            android:fontFamily="sans-serif-bold" />
+                            android:fontFamily="sans-serif" />
                     </LinearLayout>
+
+                    <!-- 3. Connection Cards Grid (Two Equal Columns) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:baselineAligned="false">
+
+                        <!-- Left Card: USB-C Cable (Recommended) -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/card_aurora_bg"
+                            android:orientation="vertical"
+                            android:padding="16dp"
+                            android:minHeight="210dp">
+
+                            <!-- Top Tag: Recommended -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/badge_recommended"
+                                android:paddingStart="10dp"
+                                android:paddingTop="3dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="3dp"
+                                android:text="Recommended"
+                                android:textColor="@color/aurora_blue_dark"
+                                android:textSize="11sp"
+                                android:fontFamily="sans-serif-medium" />
+
+                            <!-- Title: USB-C Cable -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@drawable/ic_usb" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="USB-C cable"
+                                    android:textColor="@color/aurora_ink"
+                                    android:textSize="17sp"
+                                    android:fontFamily="sans-serif-medium" />
+                            </LinearLayout>
+
+                            <!-- Spec Chips Row -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@drawable/chip_spec"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="5 Gbps"
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:background="@drawable/chip_spec"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="&lt; 1 ms"
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:background="@drawable/chip_spec"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="85 Mbps"
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:background="@drawable/chip_spec"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="120 FPS"
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
+                            <!-- Spacer to push status and button to bottom -->
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0dp"
+                                android:layout_weight="1" />
+
+                            <!-- Status Pill (Searching / Found) -->
+                            <LinearLayout
+                                android:id="@+id/layoutUsbStatus"
+                                android:layout_width="match_parent"
+                                android:layout_height="36dp"
+                                android:layout_marginBottom="12dp"
+                                android:background="@drawable/status_pill_bg"
+                                android:paddingStart="10dp"
+                                android:paddingEnd="10dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <ProgressBar
+                                    android:id="@+id/searchProgress"
+                                    style="?android:attr/progressBarStyleSmall"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:indeterminate="true"
+                                    android:indeterminateTint="@color/aurora_blue" />
+
+                                <ImageView
+                                    android:id="@+id/ivUsbStatusIcon"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:src="@drawable/ic_check_circle"
+                                    android:visibility="gone" />
+
+                                <TextView
+                                    android:id="@+id/tvStatusMessage"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:layout_marginStart="8dp"
+                                    android:text="Looking for your Mac over USB-C..."
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="12sp"
+                                    android:maxLines="1"
+                                    android:ellipsize="end" />
+                            </LinearLayout>
+
+                            <!-- USB Connect / Stop Action Button -->
+                            <androidx.appcompat.widget.AppCompatButton
+                                android:id="@+id/btnConnectUsb"
+                                android:layout_width="match_parent"
+                                android:layout_height="42dp"
+                                android:background="@drawable/btn_aurora_outlined"
+                                android:text="Stop searching"
+                                android:textColor="@color/aurora_blue"
+                                android:textSize="14sp"
+                                android:textAllCaps="false"
+                                android:fontFamily="sans-serif-medium" />
+                        </LinearLayout>
+
+                        <!-- Right Card: Wi-Fi (Wireless) -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/card_aurora_bg"
+                            android:orientation="vertical"
+                            android:padding="16dp"
+                            android:minHeight="210dp">
+
+                            <!-- Top Tag: Wireless -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/badge_wireless"
+                                android:paddingStart="10dp"
+                                android:paddingTop="3dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="3dp"
+                                android:text="Wireless"
+                                android:textColor="@color/aurora_sky_dark"
+                                android:textSize="11sp"
+                                android:fontFamily="sans-serif-medium" />
+
+                            <!-- Title: Wi-Fi -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:src="@drawable/ic_wifi" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="8dp"
+                                    android:text="Wi-Fi"
+                                    android:textColor="@color/aurora_ink"
+                                    android:textSize="17sp"
+                                    android:fontFamily="sans-serif-medium" />
+                            </LinearLayout>
+
+                            <!-- Spec Chips Row -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@drawable/chip_spec"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="Wi-Fi 6E / 7"
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:background="@drawable/chip_spec"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="Adaptive bitrate"
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:background="@drawable/chip_spec"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="2dp"
+                                    android:text="120 FPS"
+                                    android:textColor="@color/aurora_ink_tertiary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+
+                            <!-- Spacer to push status and button to bottom -->
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="0dp"
+                                android:layout_weight="1" />
+
+                            <!-- Discovered Bonjour Mac / Manual Entry Box -->
+                            <LinearLayout
+                                android:id="@+id/layoutWifiDiscovery"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="12dp"
+                                android:orientation="vertical">
+
+                                <!-- Discovered Mac Pill -->
+                                <LinearLayout
+                                    android:id="@+id/layoutFoundMac"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="36dp"
+                                    android:background="@drawable/status_pill_bg"
+                                    android:paddingStart="10dp"
+                                    android:paddingEnd="10dp"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical">
+
+                                    <ImageView
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
+                                        android:src="@drawable/ic_device_desktop" />
+
+                                    <LinearLayout
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:layout_marginStart="8dp"
+                                        android:orientation="vertical">
+
+                                        <TextView
+                                            android:id="@+id/tvDiscoveredMacTitle"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="Mac mini M4"
+                                            android:textColor="@color/aurora_ink"
+                                            android:textSize="12sp"
+                                            android:fontFamily="sans-serif-medium" />
+
+                                        <TextView
+                                            android:id="@+id/tvWifiDiscoveryStatus"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="Searching via Bonjour..."
+                                            android:textColor="@color/aurora_ink_secondary"
+                                            android:textSize="11sp" />
+                                    </LinearLayout>
+
+                                    <ImageView
+                                        android:id="@+id/ivWifiFoundCheck"
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
+                                        android:src="@drawable/ic_check_circle"
+                                        android:visibility="gone" />
+                                </LinearLayout>
+
+                                <!-- Manual IP Input Field (Toggleable) -->
+                                <EditText
+                                    android:id="@+id/manualIpInput"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="38dp"
+                                    android:layout_marginTop="6dp"
+                                    android:background="@drawable/edittext_aurora"
+                                    android:paddingStart="12dp"
+                                    android:paddingEnd="12dp"
+                                    android:hint="Mac IP, e.g. 192.168.1.17"
+                                    android:textColor="@color/aurora_ink"
+                                    android:textColorHint="@color/aurora_ink_secondary"
+                                    android:textSize="13sp"
+                                    android:inputType="textUri"
+                                    android:visibility="gone" />
+
+                                <!-- Manual IP Toggle Button -->
+                                <TextView
+                                    android:id="@+id/btnToggleManualIp"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:text="Enter IP manually"
+                                    android:textColor="@color/aurora_blue"
+                                    android:textSize="12sp"
+                                    android:padding="2dp" />
+                            </LinearLayout>
+
+                            <!-- Wi-Fi Connect Action Button -->
+                            <androidx.appcompat.widget.AppCompatButton
+                                android:id="@+id/btnConnectWifi"
+                                android:layout_width="match_parent"
+                                android:layout_height="42dp"
+                                android:background="@drawable/btn_aurora_tonal"
+                                android:text="Connect over Wi-Fi"
+                                android:textColor="@color/aurora_blue_dark"
+                                android:textSize="14sp"
+                                android:textAllCaps="false"
+                                android:fontFamily="sans-serif-medium" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- 4. Bottom Feature Strip (S Pen ready, Native 120Hz, HEVC decoding, Main or extra) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/card_aurora_bg"
+                        android:orientation="horizontal"
+                        android:paddingStart="6dp"
+                        android:paddingTop="10dp"
+                        android:paddingEnd="6dp"
+                        android:paddingBottom="10dp"
+                        android:baselineAligned="false">
+
+                        <!-- Item 1: S Pen ready -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <FrameLayout
+                                android:layout_width="30dp"
+                                android:layout_height="30dp"
+                                android:background="@drawable/feature_circle_bg">
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_pencil" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="S Pen ready"
+                                    android:textColor="@color/aurora_ink"
+                                    android:textSize="12sp"
+                                    android:fontFamily="sans-serif-medium" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Pressure, tilt and hover"
+                                    android:textColor="@color/aurora_ink_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Item 2: Native 120 Hz -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <FrameLayout
+                                android:layout_width="30dp"
+                                android:layout_height="30dp"
+                                android:background="@drawable/feature_circle_bg">
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_gauge" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Native 120 Hz"
+                                    android:textColor="@color/aurora_ink"
+                                    android:textSize="12sp"
+                                    android:fontFamily="sans-serif-medium" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Full resolution, no bars"
+                                    android:textColor="@color/aurora_ink_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Item 3: HEVC decoding -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <FrameLayout
+                                android:layout_width="30dp"
+                                android:layout_height="30dp"
+                                android:background="@drawable/feature_circle_bg">
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_bolt" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="HEVC decoding"
+                                    android:textColor="@color/aurora_ink"
+                                    android:textSize="12sp"
+                                    android:fontFamily="sans-serif-medium" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Hardware, low latency"
+                                    android:textColor="@color/aurora_ink_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Item 4: Main or extra -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:paddingStart="6dp"
+                            android:paddingEnd="6dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <FrameLayout
+                                android:layout_width="30dp"
+                                android:layout_height="30dp"
+                                android:background="@drawable/feature_circle_bg">
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_devices" />
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Main or extra"
+                                    android:textColor="@color/aurora_ink"
+                                    android:textSize="12sp"
+                                    android:fontFamily="sans-serif-medium" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Use as Mac's display"
+                                    android:textColor="@color/aurora_ink_secondary"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+
                 </LinearLayout>
-
-                <!-- Feedback & Progress Area -->
-                <ProgressBar
-                    android:id="@+id/searchProgress"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:layout_marginTop="16dp"
-                    android:indeterminateTint="#38BDF8"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/tvStatusMessage"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text=""
-                    android:textColor="#38BDF8"
-                    android:textSize="13sp"
-                    android:gravity="center"
-                    android:visibility="gone" />
             </LinearLayout>
         </ScrollView>
+    </FrameLayout>
 
-        <!-- Bottom Footer -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="For USB: Run './setup_usb.sh' on Mac | For Wi-Fi: Run 'swift run' on Mac"
-            android:textColor="#475569"
-            android:textSize="12sp" />
-    </LinearLayout>
-
-    <!-- Floating HUD during Live Stream (Pill Overlay with Disconnect Button) -->
+    <!-- Floating HUD Overlay (Visible only when streaming 120 FPS Mac desktop) -->
     <LinearLayout
         android:id="@+id/hudOverlay"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="16dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
         android:background="@drawable/hud_background"
+        android:paddingStart="14dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="8dp"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="6dp"
         android:gravity="center_vertical"
         android:visibility="gone">
-
-        <View
-            android:id="@+id/statusIndicator"
-            android:layout_width="8dp"
-            android:layout_height="8dp"
-            android:background="@drawable/circle_green" />
 
         <TextView
             android:id="@+id/statusText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
             android:text="Connected (USB 5 Gbps)"
-            android:textColor="@color/white"
-            android:textSize="12sp"
+            android:textColor="@color/aurora_success"
+            android:textSize="13sp"
             android:fontFamily="sans-serif-medium" />
 
         <TextView
@@ -307,9 +751,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
-            android:text="120 Hz"
-            android:textColor="@color/status_green"
-            android:textSize="12sp"
+            android:text="120 FPS"
+            android:textColor="@color/white"
+            android:textSize="13sp"
             android:fontFamily="sans-serif-bold" />
 
         <TextView
@@ -317,32 +761,23 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="14dp"
-            android:text="⚡ 0.0 Mbps"
-            android:textColor="#38BDF8"
-            android:textSize="12sp"
-            android:fontFamily="sans-serif-bold" />
+            android:text="⚡ 85.0 Mbps"
+            android:textColor="@color/aurora_sky"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
 
-        <!-- Vertical Divider -->
-        <View
-            android:layout_width="1dp"
-            android:layout_height="16dp"
-            android:layout_marginStart="14dp"
-            android:layout_marginEnd="12dp"
-            android:background="#33FFFFFF" />
-
-        <!-- Disconnect Button Inside HUD -->
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnDisconnect"
             android:layout_width="wrap_content"
-            android:layout_height="30dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="14dp"
             android:background="@drawable/btn_disconnect_bg"
-            android:text="✕ Disconnect"
-            android:textAllCaps="false"
-            android:textColor="#EF4444"
+            android:text="Disconnect"
+            android:textColor="@color/white"
             android:textSize="12sp"
-            android:fontFamily="sans-serif-bold"
             android:paddingStart="12dp"
-            android:paddingEnd="12dp" />
+            android:paddingEnd="12dp"
+            android:textAllCaps="false" />
     </LinearLayout>
 
 </FrameLayout>

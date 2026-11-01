@@ -1,0 +1,5 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/aurora_card" />
+    <corners android:radius="13dp" />
+    <stroke android:width="0.5dp" android:color="@color/aurora_card_border" />
+</shape>
