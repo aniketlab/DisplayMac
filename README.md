@@ -18,9 +18,6 @@
   <a href="#"><img src="https://img.shields.io/badge/Resolution-2960%C3%971848%20OLED-purple?style=flat-square" alt="Resolution"></a>
 </p>
 
-<img src="assets/DisplayMac-Android-Preview.png" width="80%" alt="DisplayMac Adaptive Icon System" style="border-radius: 12px; margin-top: 15px;" />
-<p><em>Official DisplayMac Adaptive Android Icon System (Circle, Squircle, Material You Themed Monochrome & Safe Zone)</em></p>
-
 </div>
 
 ---
