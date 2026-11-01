@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" width="160" height="160" alt="DisplayMac App Icon" style="border-radius: 22%;">
+</p>
+
 # DisplayMac ⚡🖥️
 
 <p align="center">
