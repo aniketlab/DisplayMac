@@ -152,9 +152,58 @@ class MainActivity : AppCompatActivity() {
      */
     private fun detectAndShowDeviceInfo() {
         try {
-            val deviceName = Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
-                ?.takeIf { it.isNotBlank() }
-                ?: Build.MODEL
+            var friendlyName: String? = null
+
+            // 1. Check System and Global settings
+            try {
+                friendlyName = Settings.Global.getString(contentResolver, "device_name")
+                    ?.takeIf { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) }
+            } catch (_: Exception) {}
+
+            if (friendlyName == null) {
+                try {
+                    friendlyName = Settings.Secure.getString(contentResolver, "bluetooth_name")
+                        ?.takeIf { it.isNotBlank() }
+                } catch (_: Exception) {}
+            }
+
+            if (friendlyName == null) {
+                try {
+                    friendlyName = Settings.System.getString(contentResolver, "device_name")
+                        ?.takeIf { it.isNotBlank() }
+                } catch (_: Exception) {}
+            }
+
+            // 2. Map known raw model codes to friendly commercial names
+            val model = Build.MODEL.trim()
+            val mappedName = when {
+                model.equals("PGFM10", ignoreCase = true) -> "OPPO Find X6"
+                model.equals("PGEM10", ignoreCase = true) -> "OPPO Find X6 Pro"
+                model.startsWith("SM-X92", ignoreCase = true) -> "Galaxy Tab S10 Ultra"
+                model.startsWith("SM-X82", ignoreCase = true) -> "Galaxy Tab S10+"
+                model.startsWith("SM-X91", ignoreCase = true) -> "Galaxy Tab S9 Ultra"
+                model.startsWith("SM-X81", ignoreCase = true) -> "Galaxy Tab S9+"
+                model.startsWith("SM-X71", ignoreCase = true) -> "Galaxy Tab S9"
+                model.startsWith("SM-X90", ignoreCase = true) -> "Galaxy Tab S8 Ultra"
+                model.startsWith("SM-X80", ignoreCase = true) -> "Galaxy Tab S8+"
+                model.startsWith("SM-X70", ignoreCase = true) -> "Galaxy Tab S8"
+                model.startsWith("SM-T97", ignoreCase = true) -> "Galaxy Tab S7+"
+                model.startsWith("SM-T87", ignoreCase = true) -> "Galaxy Tab S7"
+                model.startsWith("SM-X21", ignoreCase = true) || model.startsWith("SM-X20", ignoreCase = true) -> "Galaxy Tab A9+"
+                model.contains("Pixel Tablet", ignoreCase = true) -> "Pixel Tablet"
+                model.startsWith("OPD", ignoreCase = true) -> "OnePlus Pad"
+                else -> null
+            }
+
+            val finalName = when {
+                !friendlyName.isNullOrBlank() && !friendlyName.matches(Regex("^[A-Z0-9_-]{4,10}$")) -> friendlyName
+                mappedName != null -> mappedName
+                !friendlyName.isNullOrBlank() -> "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} $friendlyName"
+                else -> {
+                    val mfg = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }
+                    if (model.startsWith(mfg, ignoreCase = true)) model else "$mfg $model"
+                }
+            }
 
             val display = getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
             val mode = display.mode
@@ -162,8 +211,8 @@ class MainActivity : AppCompatActivity() {
             val h = minOf(mode.physicalWidth, mode.physicalHeight)
             val hz = display.refreshRate.roundToInt()
 
-            panelSpecsBadge.text = "$deviceName · $w × $h · $hz Hz"
-            dashStatusSub.text = "Pick how to connect your $deviceName"
+            panelSpecsBadge.text = "$finalName · $w × $h · $hz Hz"
+            dashStatusSub.text = "Pick how to connect your $finalName"
         } catch (_: Exception) {
             panelSpecsBadge.text = "Galaxy Tab S10 Ultra · 2960 × 1848 · 120 Hz"
         }
