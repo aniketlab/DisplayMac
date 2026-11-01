@@ -171,7 +171,6 @@ public final class InputInjector {
             event.setIntegerValueField(.tabletProximityEventTabletID, value: 1)
             event.setIntegerValueField(.tabletProximityEventPointerID, value: 1)
             event.setIntegerValueField(.tabletProximityEventDeviceID, value: 1)
-            event.setIntegerValueField(.tabletProximityEventSystemPointerID, value: 1)
             event.setIntegerValueField(.tabletProximityEventPointerType, value: 1) // 1 = Pen
             event.setIntegerValueField(.tabletProximityEventCapabilityMask, value: 0x000F) // Pressure, Tilt, Buttons
             event.post(tap: .cghidEventTap)
