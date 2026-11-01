@@ -230,7 +230,10 @@ DisplayMac/
 │   │   └── network/                 # ConnectionManager & Bonjour client
 │   └── build.gradle.kts
 ├── shared/                          # Wire protocol specification (protocol.md)
-├── reset_server.sh                  # Clean process & hardware audio reset script
+├── stop_server.sh                   # Stop running server & reset hardware audio
+├── reset_server.sh                  # Quick reset helper
+├── uninstall.sh                     # Complete uninstallation wizard
+├── Uninstall DisplayMac.command     # Double-clickable macOS uninstaller
 ├── DisplayMac.apk                   # Pre-compiled ready-to-use Android APK
 ├── LICENSE                          # MIT Open Source License
 └── README.md                        # Documentation
@@ -238,17 +241,30 @@ DisplayMac/
 
 ---
 
-## 🛠️ Troubleshooting & Reset
+## 🛠️ Server Management & Uninstallation
 
-If a server process gets stuck or audio routing needs a reset:
+### 1. Stopping the Server (Temporary Reset)
+To stop the server, release virtual displays, and restore physical Mac audio without deleting files:
 ```bash
-./reset_server.sh
+./stop_server.sh
 ```
-This utility:
-1. Terminates any running `DisplayMacServer` processes.
-2. Releases active virtual displays from WindowServer.
-3. Restores macOS default audio to your physical Mac / monitor speakers.
-4. Resets ADB reverse socket tunnels.
+
+### 2. Complete Uninstallation (Factory Clean)
+If you connected a physical monitor and want to permanently purge DisplayMac, its audio drivers, and background services from macOS:
+
+- **Via Terminal**:
+  ```bash
+  ./uninstall.sh
+  ```
+- **Via Finder**: Simply double-click **`Uninstall DisplayMac.command`**.
+
+This completely:
+1. Kills all running DisplayMac instances.
+2. Removes all LaunchAgent autostart configurations.
+3. Uninstalls `/Library/Audio/Plug-Ins/HAL/DisplayMacAudio.driver`.
+4. Restarts `coreaudiod` to restore 100% stock factory macOS audio.
+5. Clears all ADB socket tunnels and runtime temporary locks.
+6. Leaves your Mac in a pristine, untouched state.
 
 ---
 
