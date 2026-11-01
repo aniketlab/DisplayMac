@@ -23,7 +23,7 @@ public final class VirtualDisplayManager {
         self.currentRefreshRate = refreshRate
         
         // 1. Check if an active, dedicated virtual display is ALREADY allocated and online
-        if let existingID = activeDisplayID, virtualDisplayInstance != nil, existingID != CGMainDisplayID() {
+        if let existingID = activeDisplayID, virtualDisplayInstance != nil {
             if CGDisplayIsActive(existingID) != 0 {
                 print("[VirtualDisplay] ♻️ Reusing existing active virtual display ID: \(existingID)")
                 return true

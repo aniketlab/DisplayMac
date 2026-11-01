@@ -230,6 +230,8 @@ DisplayMac/
 │   │   └── network/                 # ConnectionManager & Bonjour client
 │   └── build.gradle.kts
 ├── shared/                          # Wire protocol specification (protocol.md)
+├── install_service.sh               # Permanent background auto-start installer
+├── Install Background Service.command # Double-clickable service installer
 ├── stop_server.sh                   # Stop running server & reset hardware audio
 ├── reset_server.sh                  # Quick reset helper
 ├── reset_permissions.sh             # Revokes macOS Accessibility & Screen Recording grants
@@ -243,15 +245,40 @@ DisplayMac/
 
 ---
 
-## 🛠️ Server Management & Uninstallation
+## 🛠️ Server Management & Background Service
 
-### 1. Stopping the Server (Temporary Reset)
-To stop the server, release virtual displays, and restore physical Mac audio without deleting files:
+### 1. Permanent Auto-Start (Headless Mode)
+Once setup is complete and you want your Mac mini to automatically run DisplayMac in the background 24/7 without ever opening Terminal:
+
+- **Via Finder**: Simply double-click **`Install Background Service.command`**.
+- **Via Terminal**:
+  ```bash
+  ./install_service.sh
+  ```
+
+This:
+1. Compiles `DisplayMacServer` in release mode and installs it to `/usr/local/bin/DisplayMacServer`.
+2. Sets up a persistent macOS `LaunchAgent` daemon (`com.displaymac.server.plist`) with `KeepAlive: true` and `RunAtLoad: true`.
+3. Ensures `DisplayMacServer` **auto-starts upon Mac boot, login, or reboot**, and stays alive after sleep.
+4. Activates sleep-prevention assertions so your Mac mini will never sleep in the middle of a streaming session.
+5. Turns your Galaxy Tab into the **primary display** even when NO physical monitor is plugged into the Mac mini!
+
+---
+
+### 2. Smart Auto-Reconnect Watchdog (Zero-Click Recovery)
+The Android client features an active auto-reconnection watchdog:
+- **On App Launch**: DisplayMac automatically begins searching for your Mac over USB-C. Just plug the cable and open the app—no buttons required.
+- **Cable Jiggle / Disconnect**: If the USB cable is unplugged or sleep occurs, the app does not crash or give up. It enters auto-reconnect mode and retries every 1.5 seconds. Re-plugging the cable resumes the 120 FPS desktop in under a second!
+
+---
+
+### 3. Stopping the Server (Temporary Reset)
+To temporarily stop the server, pause the background service, release virtual displays, and restore physical Mac audio without deleting files:
 ```bash
 ./stop_server.sh
 ```
 
-### 2. Complete Uninstallation (Factory Clean)
+### 4. Complete Uninstallation (Factory Clean)
 If you connected a physical monitor and want to permanently purge DisplayMac, its audio drivers, and background services from macOS:
 
 - **Via Terminal**:

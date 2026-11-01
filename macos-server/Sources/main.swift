@@ -1,6 +1,7 @@
 import Foundation
 import CoreMedia
 import ApplicationServices
+import IOKit.pwr_mgt
 
 final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEncoderDelegate, NetworkServerDelegate {
     private let displayManager = VirtualDisplayManager.shared
@@ -11,6 +12,28 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     private var isStreaming = false
     private var encodedFrameCount: Int = 0
     private var lastStatsTime = Date()
+    private var powerAssertionID: IOPMAssertionID = 0
+    
+    private func preventSleep() {
+        guard powerAssertionID == 0 else { return }
+        let reason = "DisplayMac Active Streaming" as CFString
+        let result = IOPMAssertionCreateWithName(
+            kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            reason,
+            &powerAssertionID
+        )
+        if result == kIOReturnSuccess {
+            print("[Power] ⚡ Sleep prevention assertion engaged: Mac mini will stay awake while streaming.")
+        }
+    }
+    
+    private func allowSleep() {
+        guard powerAssertionID != 0 else { return }
+        IOPMAssertionRelease(powerAssertionID)
+        powerAssertionID = 0
+        print("[Power] 💤 Sleep prevention assertion released.")
+    }
     
     init() {
         captureEngine.delegate = self
@@ -77,9 +100,19 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
         // Spawn or reuse virtual display matching tablet exact resolution with HiDPI Retina modes
         _ = displayManager.setupVirtualDisplay(width: targetWidth, height: targetHeight, refreshRate: targetFps)
         
-        guard let displayID = displayManager.activeDisplayID, displayID != CGMainDisplayID() else {
-            print("[Coordinator] ❌ Could not acquire dedicated virtual display. Aborting capture to protect primary BenQ monitor.")
+        guard let displayID = displayManager.activeDisplayID else {
+            print("[Coordinator] ❌ Could not acquire virtual display. Aborting capture.")
             return
+        }
+        
+        // Prevent Mac Mini sleep while tablet is connected
+        preventSleep()
+        
+        let physicalDisplays = displayManager.getPhysicalDisplayIDs()
+        if physicalDisplays.isEmpty {
+            print("[Coordinator] 🖥️ Headless Mode Active: No physical monitor detected. Tablet is serving as the PRIMARY display (ID: \(displayID)).")
+        } else {
+            print("[Coordinator] 🖥️ Multi-Monitor Mode Active: Physical display detected. Tablet is serving as secondary HiDPI display (ID: \(displayID)).")
         }
         
         InputInjector.shared.updateActiveDisplay(displayID: displayID)
@@ -142,6 +175,7 @@ final class DisplayMacCoordinator: ScreenCaptureEngineDelegate, HardwareVideoEnc
     
     func networkServerDidDisconnectClient(_ server: NetworkServer) {
         print("\n[Coordinator] 🔌 Client disconnected. Pausing capture...")
+        allowSleep()
         AudioManager.shared.setActive(false)
         AudioManager.shared.stopCapturing()
         AudioManager.shared.setDynamicDeviceName("DisplayMac Audio (Offline)")

@@ -87,6 +87,13 @@ class MainActivity : AppCompatActivity() {
 
         // Prepare SurfaceView
         setupSurface()
+
+        // Auto-search and connect over USB-C on launch (Headless Ready)
+        videoSurface.postDelayed({
+            if (connectionManager?.isConnected != true && !isFinishing) {
+                connectUsingUsb()
+            }
+        }, 600)
     }
 
     private fun bindViews() {
@@ -115,6 +122,10 @@ class MainActivity : AppCompatActivity() {
                 if (connectionManager?.isConnected == true) {
                     // If streaming, back button immediately disconnects and returns to dashboard
                     connectionManager?.disconnect()
+                } else if (connectionManager?.isReconnecting == true) {
+                    connectionManager?.cancelReconnect()
+                    hideLoading()
+                    showStatusMessage("Auto-connection stopped.", isError = false)
                 } else {
                     // On dashboard, minimize app smoothly without killing process
                     moveTaskToBack(true)
@@ -124,9 +135,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupActionButtons() {
-        // 1. USB-C Cable Connection Button
+        // 1. USB-C Cable Connection Button (Toggles connect or cancel auto-connect)
         btnConnectUsb.setOnClickListener {
-            connectUsingUsb()
+            if (connectionManager?.isReconnecting == true) {
+                connectionManager?.cancelReconnect()
+                hideLoading()
+                showStatusMessage("Auto-connection stopped. Tap button to reconnect.", isError = false)
+            } else {
+                connectUsingUsb()
+            }
         }
 
         // 2. Wi-Fi Wireless Connection Button
@@ -147,7 +164,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectUsingUsb() {
         val holder = surfaceHolderRef ?: videoSurface.holder
-        showLoading("Connecting to Mac via USB Cable (127.0.0.1)...")
+        showConnectingState("Connecting to Mac via USB Cable (127.0.0.1)...")
         if (holder.surface.isValid) {
             ensureDecoderActive(holder)
         }
@@ -155,10 +172,11 @@ class MainActivity : AppCompatActivity() {
         connectionManager?.connectToHost(
             host = "127.0.0.1",
             connectionMode = "USB 5 Gbps",
+            autoRetry = true,
             onError = { error ->
                 hideLoading()
                 showStatusMessage(
-                    "⚠️ USB Cable Connection Failed!\n1. Plug USB-C cable between Mac and Tablet.\n2. Run './setup_usb.sh' in macos-server on Mac.\n3. Verify Samsung Auto Blocker is OFF.",
+                    "⚠️ USB Cable Connection Failed!\n1. Plug USB-C cable between Mac and Tablet.\n2. Ensure Mac background service is running.\n3. Verify Samsung Auto Blocker is OFF.",
                     isError = true
                 )
             }
@@ -167,7 +185,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectUsingWifi(ip: String) {
         val holder = surfaceHolderRef ?: videoSurface.holder
-        showLoading("Connecting to Mac at $ip over Wi-Fi...")
+        showConnectingState("Connecting to Mac at $ip over Wi-Fi...")
         if (holder.surface.isValid) {
             ensureDecoderActive(holder)
         }
@@ -175,6 +193,7 @@ class MainActivity : AppCompatActivity() {
         connectionManager?.connectToHost(
             host = ip,
             connectionMode = "Wi-Fi (Wireless)",
+            autoRetry = false,
             onError = { error ->
                 hideLoading()
                 showStatusMessage(
@@ -197,17 +216,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showLoading(message: String) {
+    private fun showConnectingState(message: String) {
         searchProgress.visibility = View.VISIBLE
         tvStatusMessage.visibility = View.VISIBLE
         tvStatusMessage.text = message
         tvStatusMessage.setTextColor(getColor(R.color.status_cyan))
-        btnConnectUsb.isEnabled = false
+        btnConnectUsb.text = "✕ Stop Connecting"
+        btnConnectUsb.isEnabled = true
         btnConnectWifi.isEnabled = false
     }
 
     private fun hideLoading() {
         searchProgress.visibility = View.GONE
+        btnConnectUsb.text = "⚡ Connect via USB Cable"
         btnConnectUsb.isEnabled = true
         btnConnectWifi.isEnabled = true
     }
@@ -246,7 +267,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initConnectionManager() {
-        // Initialize Connection Manager
+        // Initialize Connection Manager with Smart Auto-Reconnect Watchdog
         val connManager = ConnectionManager(
             context = this,
             onConnected = { mode ->
@@ -279,7 +300,7 @@ class MainActivity : AppCompatActivity() {
                 statusText.setTextColor(getColor(R.color.status_green))
                 fpsText.text = "120 FPS"
             },
-            onDisconnected = {
+            onDisconnected = { wasUnexpected ->
                 // Stop audio playback
                 audioPlayer?.stop()
                 
@@ -288,13 +309,20 @@ class MainActivity : AppCompatActivity() {
                 dashboardLayout.alpha = 1f
                 dashboardLayout.visibility = View.VISIBLE
                 hudOverlay.visibility = View.GONE
-                hideLoading()
 
                 // Release decoder session to ensure fresh keyframe on next connect
                 videoDecoder?.stopDecoder()
                 videoDecoder = null
 
-                showStatusMessage("Session disconnected. Select USB or Wi-Fi to reconnect.", isError = false)
+                if (wasUnexpected) {
+                    showConnectingState("⚡ Cable disconnected or Mac sleeping. Reconnecting automatically...")
+                } else {
+                    hideLoading()
+                    showStatusMessage("Session ended. Connect via USB or Wi-Fi to resume.", isError = false)
+                }
+            },
+            onReconnecting = { attempt, mode ->
+                showConnectingState("🔄 Waiting for Mac mini over $mode... (Auto-retrying #$attempt)")
             },
             onVideoFrame = { nalu, ptsUs, isKeyframe ->
                 videoDecoder?.decodeNalu(nalu, ptsUs, isKeyframe)

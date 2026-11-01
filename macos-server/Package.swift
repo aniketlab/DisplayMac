@@ -24,7 +24,8 @@ let package = Package(
                 .linkedFramework("CoreMedia"),
                 .linkedFramework("CoreVideo"),
                 .linkedFramework("CoreGraphics"),
-                .linkedFramework("Network")
+                .linkedFramework("Network"),
+                .linkedFramework("IOKit")
             ]
         )
     ]

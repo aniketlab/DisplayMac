@@ -41,7 +41,7 @@ public final class InputInjector {
     
     // MARK: - Native Touch Interaction (Taps, Kinetic Scrolling, Gestures without Mouse Arrow)
     public func handleTouchPacket(_ packet: TouchPacket) {
-        guard let displayID = activeDisplayID, displayID != CGMainDisplayID() else {
+        guard let displayID = activeDisplayID else {
             return
         }
         
@@ -178,8 +178,8 @@ public final class InputInjector {
     }
     
     public func handleStylusPacket(_ packet: StylusPacket) {
-        // Only inject touches if active virtual display exists (NEVER touch primary BenQ monitor)
-        guard let displayID = activeDisplayID, displayID != CGMainDisplayID() else {
+        // Inject stylus input into active virtual display
+        guard let displayID = activeDisplayID else {
             return
         }
         

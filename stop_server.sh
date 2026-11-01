@@ -11,8 +11,14 @@ echo "============================================================"
 echo "  DisplayMac 🛑 Stopping Server & Resetting Hardware"
 echo "============================================================"
 
-# 1. Terminate running DisplayMacServer processes
+# 1. Terminate running DisplayMacServer processes & unload LaunchAgent
 echo "[1/4] Stopping active DisplayMacServer instances..."
+PLIST_FILE="$HOME/Library/LaunchAgents/com.displaymac.server.plist"
+if [ -f "$PLIST_FILE" ]; then
+    echo "• Pausing LaunchAgent background service..."
+    launchctl unload "$PLIST_FILE" 2>/dev/null || true
+fi
+
 PIDS=$(pgrep -f "DisplayMacServer" || true)
 if [ -n "$PIDS" ]; then
     echo "• Found running PID(s): $PIDS. Terminating gracefully..."

@@ -18,7 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ConnectionManager(
     private val context: Context,
     private val onConnected: (mode: String) -> Unit,
-    private val onDisconnected: () -> Unit,
+    private val onDisconnected: (wasUnexpected: Boolean) -> Unit,
+    private val onReconnecting: ((attempt: Int, mode: String) -> Unit)? = null,
     private val onVideoFrame: (nalu: ByteArray, ptsUs: Long, isKeyframe: Boolean) -> Unit,
     private val onAudioFrame: (pcmData: ByteArray) -> Unit,
     private val onSpeedUpdated: ((Float) -> Unit)? = null
@@ -34,10 +35,20 @@ class ConnectionManager(
 
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var connectionJob: Job? = null
+    private var retryJob: Job? = null
 
     private val _isConnected = AtomicBoolean(false)
     val isConnected: Boolean
         get() = _isConnected.get()
+
+    private var isUserInitiatedDisconnect = false
+    private var autoReconnectEnabled = true
+    private var lastHost: String = "127.0.0.1"
+    private var lastMode: String = "USB 5 Gbps"
+    private var reconnectAttempt = 0
+
+    val isReconnecting: Boolean
+        get() = autoReconnectEnabled && !_isConnected.get() && retryJob?.isActive == true
 
     private var nsdManager: NsdManager? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
@@ -102,19 +113,31 @@ class ConnectionManager(
     }
 
     /**
-     * Connect to target host (127.0.0.1 for USB cable, or local Wi-Fi IP).
+     * Connect to target host (127.0.0.1 for USB cable, or local Wi-Fi IP)
+     * with smart automatic reconnection.
      */
-    fun connectToHost(host: String, connectionMode: String, onError: (String) -> Unit) {
+    fun connectToHost(host: String, connectionMode: String, autoRetry: Boolean = true, onError: ((String) -> Unit)? = null) {
+        isUserInitiatedDisconnect = false
+        autoReconnectEnabled = autoRetry
+        lastHost = host
+        lastMode = connectionMode
+        reconnectAttempt = 0
+        retryJob?.cancel()
+
+        attemptConnection(host, connectionMode, onError)
+    }
+
+    private fun attemptConnection(host: String, connectionMode: String, onError: ((String) -> Unit)? = null) {
         if (_isConnected.get()) return
 
         connectionJob?.cancel()
         connectionJob = managerScope.launch {
             try {
-                Log.i(TAG, "Connecting to Control Channel $host:${ProtocolConstants.CONTROL_PORT}...")
+                Log.i(TAG, "Connecting to Control Channel $host:${ProtocolConstants.CONTROL_PORT} (Attempt ${reconnectAttempt + 1})...")
                 val cSocket = Socket()
                 cSocket.tcpNoDelay = true
                 cSocket.soTimeout = 0 // Infinite read timeout during streaming
-                cSocket.connect(InetSocketAddress(host, ProtocolConstants.CONTROL_PORT), 3500)
+                cSocket.connect(InetSocketAddress(host, ProtocolConstants.CONTROL_PORT), 2500)
                 controlSocket = cSocket
                 controlOutputStream = DataOutputStream(cSocket.getOutputStream())
 
@@ -123,10 +146,12 @@ class ConnectionManager(
                 vSocket.tcpNoDelay = true
                 vSocket.receiveBufferSize = 128 * 1024 // 128KB buffer (zero bufferbloat, instantaneous wire delivery)
                 vSocket.soTimeout = 0
-                vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 3500)
+                vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 2500)
                 videoSocket = vSocket
 
                 _isConnected.set(true)
+                reconnectAttempt = 0
+
                 withContext(Dispatchers.Main) {
                     onConnected(connectionMode)
                 }
@@ -153,7 +178,7 @@ class ConnectionManager(
                         aSocket.tcpNoDelay = true
                         aSocket.receiveBufferSize = 512 * 1024
                         aSocket.soTimeout = 0
-                        aSocket.connect(InetSocketAddress(host, ProtocolConstants.AUDIO_PORT), 3500)
+                        aSocket.connect(InetSocketAddress(host, ProtocolConstants.AUDIO_PORT), 2500)
                         audioSocket = aSocket
                         Log.i(TAG, "🎵 Audio Channel connected to $host:${ProtocolConstants.AUDIO_PORT}")
                         readAudioStream(aSocket)
@@ -163,14 +188,44 @@ class ConnectionManager(
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "Connection failed to $host", e)
+                Log.w(TAG, "Connection failed to $host: ${e.message}")
                 cleanupSockets()
                 _isConnected.set(false)
-                withContext(Dispatchers.Main) {
-                    val msg = e.localizedMessage ?: "Connection timed out"
-                    onError(msg)
+
+                if (autoReconnectEnabled && !isUserInitiatedDisconnect) {
+                    scheduleReconnect(onError)
+                } else {
+                    withContext(Dispatchers.Main) {
+                        val msg = e.localizedMessage ?: "Connection timed out"
+                        onError?.invoke(msg)
+                    }
                 }
             }
+        }
+    }
+
+    private fun scheduleReconnect(onError: ((String) -> Unit)? = null) {
+        retryJob?.cancel()
+        retryJob = managerScope.launch {
+            reconnectAttempt++
+            withContext(Dispatchers.Main) {
+                onReconnecting?.invoke(reconnectAttempt, lastMode)
+            }
+            delay(1500)
+            if (autoReconnectEnabled && !isUserInitiatedDisconnect && !_isConnected.get()) {
+                attemptConnection(lastHost, lastMode, onError)
+            }
+        }
+    }
+
+    fun cancelReconnect() {
+        autoReconnectEnabled = false
+        retryJob?.cancel()
+        connectionJob?.cancel()
+        cleanupSockets()
+        _isConnected.set(false)
+        managerScope.launch(Dispatchers.Main) {
+            onDisconnected(false)
         }
     }
 
@@ -296,8 +351,12 @@ class ConnectionManager(
         if (_isConnected.compareAndSet(true, false)) {
             Log.i(TAG, "Remote server disconnected or connection closed.")
             cleanupSockets()
+            val wasUnexpected = !isUserInitiatedDisconnect
             managerScope.launch(Dispatchers.Main) {
-                onDisconnected()
+                onDisconnected(wasUnexpected)
+            }
+            if (wasUnexpected && autoReconnectEnabled) {
+                scheduleReconnect(null)
             }
         }
     }
@@ -307,11 +366,14 @@ class ConnectionManager(
      */
     fun disconnect() {
         Log.i(TAG, "User requested disconnect.")
-        _isConnected.set(false)
+        isUserInitiatedDisconnect = true
+        autoReconnectEnabled = false
+        retryJob?.cancel()
         connectionJob?.cancel()
+        _isConnected.set(false)
         cleanupSockets()
         managerScope.launch(Dispatchers.Main) {
-            onDisconnected()
+            onDisconnected(false)
         }
     }
 
