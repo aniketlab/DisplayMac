@@ -13,5 +13,7 @@ else
     sudo rm -f "/usr/local/bin/DisplayMacServer"
     sudo rm -rf "/Library/Audio/Plug-Ins/HAL/DisplayMacAudio.driver"
     sudo killall -9 coreaudiod 2>/dev/null || true
+    tccutil reset Accessibility com.apple.Terminal 2>/dev/null || true
+    tccutil reset ScreenCapture com.apple.Terminal 2>/dev/null || true
     echo "✅ DisplayMac Server uninstalled successfully."
 fi

@@ -232,6 +232,8 @@ DisplayMac/
 ├── shared/                          # Wire protocol specification (protocol.md)
 ├── stop_server.sh                   # Stop running server & reset hardware audio
 ├── reset_server.sh                  # Quick reset helper
+├── reset_permissions.sh             # Revokes macOS Accessibility & Screen Recording grants
+├── Reset Permissions.command        # Double-clickable permission reset utility
 ├── uninstall.sh                     # Complete uninstallation wizard
 ├── Uninstall DisplayMac.command     # Double-clickable macOS uninstaller
 ├── DisplayMac.apk                   # Pre-compiled ready-to-use Android APK
@@ -264,7 +266,18 @@ This completely:
 3. Uninstalls `/Library/Audio/Plug-Ins/HAL/DisplayMacAudio.driver`.
 4. Restarts `coreaudiod` to restore 100% stock factory macOS audio.
 5. Clears all ADB socket tunnels and runtime temporary locks.
-6. Leaves your Mac in a pristine, untouched state.
+6. Revokes **Screen Recording**, **Accessibility**, and **Input Monitoring** privacy permissions for Terminal and DisplayMac.
+7. Leaves your Mac in a pristine, untouched factory-clean state.
+
+### 3. Resetting Privacy Permissions Only
+If you want to reset macOS privacy authorizations without deleting any drivers or files:
+- **Via Terminal**:
+  ```bash
+  ./reset_permissions.sh
+  ```
+- **Via Finder**: Double-click **`Reset Permissions.command`**.
+
+This instructs macOS TCC to revoke Accessibility and Screen Recording permissions for Terminal. The next time you run `swift run`, macOS will display fresh permission prompts.
 
 ---
 
