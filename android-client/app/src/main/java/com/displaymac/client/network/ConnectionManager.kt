@@ -19,7 +19,7 @@ class ConnectionManager(
     private val context: Context,
     private val onConnected: (mode: String) -> Unit,
     private val onDisconnected: (wasUnexpected: Boolean) -> Unit,
-    private val onReconnecting: ((attempt: Int, mode: String) -> Unit)? = null,
+    private val onSearchingStatus: (attempt: Int, mode: String) -> Unit,
     private val onVideoFrame: (nalu: ByteArray, ptsUs: Long, isKeyframe: Boolean) -> Unit,
     private val onAudioFrame: (pcmData: ByteArray) -> Unit,
     private val onSpeedUpdated: ((Float) -> Unit)? = null
@@ -34,32 +34,29 @@ class ConnectionManager(
     private var controlOutputStream: DataOutputStream? = null
 
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var connectionJob: Job? = null
-    private var retryJob: Job? = null
+    private var probeJob: Job? = null
 
     private val _isConnected = AtomicBoolean(false)
     val isConnected: Boolean
         get() = _isConnected.get()
 
-    private var isUserInitiatedDisconnect = false
-    private var autoReconnectEnabled = true
-    private var lastHost: String = "127.0.0.1"
-    private var lastMode: String = "USB 5 Gbps"
-    private var reconnectAttempt = 0
+    @Volatile
+    private var isAutoConnecting = false
 
-    val isReconnecting: Boolean
-        get() = autoReconnectEnabled && !_isConnected.get() && retryJob?.isActive == true
+    val isSearching: Boolean
+        get() = isAutoConnecting && !_isConnected.get()
+
+    private var targetHost: String = "127.0.0.1"
+    private var targetMode: String = "USB-C Cable"
 
     private var nsdManager: NsdManager? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
 
     /**
-     * Start background Bonjour/mDNS discovery.
-     * Only updates the UI with the discovered IP — DOES NOT auto-connect.
+     * Start background Bonjour/mDNS discovery for Wi-Fi mode.
      */
     fun startMdnsDiscovery(onDiscovered: (ip: String) -> Unit) {
         nsdManager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager ?: return
-        
         stopMdnsDiscovery()
 
         val listener = object : NsdManager.DiscoveryListener {
@@ -113,120 +110,126 @@ class ConnectionManager(
     }
 
     /**
-     * Connect to target host (127.0.0.1 for USB cable, or local Wi-Fi IP)
-     * with smart automatic reconnection.
+     * Starts continuous background probe loop over USB-C (127.0.0.1).
+     * Never gives up or shows dead errors; continuously probes every 1s until Mac connects!
      */
-    fun connectToHost(host: String, connectionMode: String, autoRetry: Boolean = true, onError: ((String) -> Unit)? = null) {
-        isUserInitiatedDisconnect = false
-        autoReconnectEnabled = autoRetry
-        lastHost = host
-        lastMode = connectionMode
-        reconnectAttempt = 0
-        retryJob?.cancel()
-
-        attemptConnection(host, connectionMode, onError)
+    fun startUsbAutoConnect() {
+        startContinuousProbe("127.0.0.1", "USB-C Cable")
     }
 
-    private fun attemptConnection(host: String, connectionMode: String, onError: ((String) -> Unit)? = null) {
-        if (_isConnected.get()) return
+    /**
+     * Starts continuous background probe loop over Wi-Fi.
+     */
+    fun startWifiAutoConnect(ip: String) {
+        startContinuousProbe(ip, "Wi-Fi ($ip)")
+    }
 
-        connectionJob?.cancel()
-        connectionJob = managerScope.launch {
-            try {
-                Log.i(TAG, "Connecting to Control Channel $host:${ProtocolConstants.CONTROL_PORT} (Attempt ${reconnectAttempt + 1})...")
-                val cSocket = Socket()
-                cSocket.tcpNoDelay = true
-                cSocket.soTimeout = 0 // Infinite read timeout during streaming
-                cSocket.connect(InetSocketAddress(host, ProtocolConstants.CONTROL_PORT), 2500)
-                controlSocket = cSocket
-                controlOutputStream = DataOutputStream(cSocket.getOutputStream())
+    private fun startContinuousProbe(host: String, mode: String) {
+        stopAutoConnect()
 
-                Log.i(TAG, "Connecting to Video Channel $host:${ProtocolConstants.VIDEO_PORT}...")
-                val vSocket = Socket()
-                vSocket.tcpNoDelay = true
-                vSocket.receiveBufferSize = 128 * 1024 // 128KB buffer (zero bufferbloat, instantaneous wire delivery)
-                vSocket.soTimeout = 0
-                vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 2500)
-                videoSocket = vSocket
+        isAutoConnecting = true
+        targetHost = host
+        targetMode = mode
 
-                _isConnected.set(true)
-                reconnectAttempt = 0
+        probeJob = managerScope.launch {
+            var attempt = 0
+            Log.i(TAG, "Starting continuous probe engine for $host ($mode)...")
 
+            while (isAutoConnecting && !_isConnected.get() && isActive) {
+                attempt++
                 withContext(Dispatchers.Main) {
-                    onConnected(connectionMode)
+                    onSearchingStatus(attempt, mode)
                 }
 
-                // Send ClientHello Handshake (2960x1848 @ 120Hz) with dynamic device marketing name
-                val deviceName = getDeviceMarketingName()
-                val helloPacket = ProtocolConstants.buildClientHello(
-                    width = 2960,
-                    height = 1848,
-                    refreshRate = 120,
-                    dpi = 280,
-                    deviceName = deviceName
-                )
-                sendControlPacket(helloPacket)
+                try {
+                    // 1. Probe Control Port (Port 7100) with quick 1.5s timeout
+                    val cSocket = Socket()
+                    cSocket.tcpNoDelay = true
+                    cSocket.soTimeout = 0
+                    cSocket.connect(InetSocketAddress(host, ProtocolConstants.CONTROL_PORT), 1500)
+                    controlSocket = cSocket
+                    controlOutputStream = DataOutputStream(cSocket.getOutputStream())
 
-                // Start Streaming receiver loops
-                launch { readVideoStream(vSocket) }
-                launch { readControlStream(cSocket) }
+                    // 2. Probe Video Port (Port 7101) with quick 1.5s timeout
+                    val vSocket = Socket()
+                    vSocket.tcpNoDelay = true
+                    vSocket.receiveBufferSize = 128 * 1024
+                    vSocket.soTimeout = 0
+                    vSocket.connect(InetSocketAddress(host, ProtocolConstants.VIDEO_PORT), 1500)
+                    videoSocket = vSocket
 
-                // Connect Dedicated Audio Channel (Port 7102) asynchronously (Zero-Lag Wire Audio)
-                launch {
-                    try {
-                        val aSocket = Socket()
-                        aSocket.tcpNoDelay = true
-                        aSocket.receiveBufferSize = 512 * 1024
-                        aSocket.soTimeout = 0
-                        aSocket.connect(InetSocketAddress(host, ProtocolConstants.AUDIO_PORT), 2500)
-                        audioSocket = aSocket
-                        Log.i(TAG, "🎵 Audio Channel connected to $host:${ProtocolConstants.AUDIO_PORT}")
-                        readAudioStream(aSocket)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Audio Channel not reachable on port 7102: ${e.message}")
-                    }
-                }
+                    // Connection Established!
+                    _isConnected.set(true)
+                    Log.i(TAG, "🎉 Connected to Mac host ($host) on attempt #$attempt!")
 
-            } catch (e: Exception) {
-                Log.w(TAG, "Connection failed to $host: ${e.message}")
-                cleanupSockets()
-                _isConnected.set(false)
-
-                if (autoReconnectEnabled && !isUserInitiatedDisconnect) {
-                    scheduleReconnect(onError)
-                } else {
                     withContext(Dispatchers.Main) {
-                        val msg = e.localizedMessage ?: "Connection timed out"
-                        onError?.invoke(msg)
+                        onConnected(mode)
                     }
+
+                    // Send ClientHello Handshake (2960x1848 @ 120Hz)
+                    val deviceName = getDeviceMarketingName()
+                    val helloPacket = ProtocolConstants.buildClientHello(
+                        width = 2960,
+                        height = 1848,
+                        refreshRate = 120,
+                        dpi = 280,
+                        deviceName = deviceName
+                    )
+                    sendControlPacket(helloPacket)
+
+                    // Connect Dedicated Audio Channel (Port 7102) asynchronously
+                    launch {
+                        try {
+                            val aSocket = Socket()
+                            aSocket.tcpNoDelay = true
+                            aSocket.receiveBufferSize = 512 * 1024
+                            aSocket.soTimeout = 0
+                            aSocket.connect(InetSocketAddress(host, ProtocolConstants.AUDIO_PORT), 2000)
+                            audioSocket = aSocket
+                            readAudioStream(aSocket)
+                        } catch (_: Exception) {}
+                    }
+
+                    // Start active streaming loops and wait until session disconnects
+                    val videoJob = launch { readVideoStream(vSocket) }
+                    val controlJob = launch { readControlStream(cSocket) }
+
+                    videoJob.join()
+                    controlJob.join()
+
+                } catch (e: Exception) {
+                    // Socket connection refused or timed out (Mac booting or cable not plugged yet)
+                    cleanupSockets()
+                    _isConnected.set(false)
+                }
+
+                // If connection was lost or failed, pause 1s before next probe
+                if (isAutoConnecting && !_isConnected.get() && isActive) {
+                    delay(1000)
                 }
             }
         }
     }
 
-    private fun scheduleReconnect(onError: ((String) -> Unit)? = null) {
-        retryJob?.cancel()
-        retryJob = managerScope.launch {
-            reconnectAttempt++
-            withContext(Dispatchers.Main) {
-                onReconnecting?.invoke(reconnectAttempt, lastMode)
-            }
-            delay(1500)
-            if (autoReconnectEnabled && !isUserInitiatedDisconnect && !_isConnected.get()) {
-                attemptConnection(lastHost, lastMode, onError)
+    /**
+     * Stops the search loop and cleanly resets to idle dashboard.
+     */
+    fun stopAutoConnect() {
+        val wasActive = isAutoConnecting || _isConnected.get()
+        isAutoConnecting = false
+        _isConnected.set(false)
+        probeJob?.cancel()
+        cleanupSockets()
+
+        if (wasActive) {
+            managerScope.launch(Dispatchers.Main) {
+                onDisconnected(false)
             }
         }
     }
 
-    fun cancelReconnect() {
-        autoReconnectEnabled = false
-        retryJob?.cancel()
-        connectionJob?.cancel()
-        cleanupSockets()
-        _isConnected.set(false)
-        managerScope.launch(Dispatchers.Main) {
-            onDisconnected(false)
-        }
+    fun disconnect() {
+        stopAutoConnect()
     }
 
     fun sendControlPacket(packet: ByteArray) {
@@ -240,9 +243,6 @@ class ConnectionManager(
         }
     }
 
-    /**
-     * Request an immediate IDR Keyframe from the Mac server (e.g. when app resumes from background).
-     */
     fun requestKeyframe() {
         if (!_isConnected.get()) return
         Log.i(TAG, "Requesting immediate IDR keyframe from Mac...")
@@ -272,8 +272,8 @@ class ConnectionManager(
                 }
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Control stream terminated: ${e.message}")
-            handleRemoteDisconnect()
+            Log.d(TAG, "Control stream disconnected: ${e.message}")
+            handleUnexpectedDisconnect()
         }
     }
 
@@ -317,8 +317,8 @@ class ConnectionManager(
                 }
             }
         } catch (e: Exception) {
-            Log.d(TAG, "Video stream terminated: ${e.message}")
-            handleRemoteDisconnect()
+            Log.d(TAG, "Video stream disconnected: ${e.message}")
+            handleUnexpectedDisconnect()
         }
     }
 
@@ -347,33 +347,13 @@ class ConnectionManager(
         }
     }
 
-    private fun handleRemoteDisconnect() {
+    private fun handleUnexpectedDisconnect() {
         if (_isConnected.compareAndSet(true, false)) {
-            Log.i(TAG, "Remote server disconnected or connection closed.")
+            Log.i(TAG, "Remote session closed unexpectedly. Resetting sockets...")
             cleanupSockets()
-            val wasUnexpected = !isUserInitiatedDisconnect
             managerScope.launch(Dispatchers.Main) {
-                onDisconnected(wasUnexpected)
+                onDisconnected(true)
             }
-            if (wasUnexpected && autoReconnectEnabled) {
-                scheduleReconnect(null)
-            }
-        }
-    }
-
-    /**
-     * Clean manual disconnect requested by user.
-     */
-    fun disconnect() {
-        Log.i(TAG, "User requested disconnect.")
-        isUserInitiatedDisconnect = true
-        autoReconnectEnabled = false
-        retryJob?.cancel()
-        connectionJob?.cancel()
-        _isConnected.set(false)
-        cleanupSockets()
-        managerScope.launch(Dispatchers.Main) {
-            onDisconnected(false)
         }
     }
 
@@ -422,7 +402,7 @@ class ConnectionManager(
     }
 
     fun shutdown() {
-        disconnect()
+        stopAutoConnect()
         stopMdnsDiscovery()
         managerScope.cancel()
     }

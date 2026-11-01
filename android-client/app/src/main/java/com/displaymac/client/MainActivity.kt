@@ -91,9 +91,9 @@ class MainActivity : AppCompatActivity() {
         // Auto-search and connect over USB-C on launch (Headless Ready)
         videoSurface.postDelayed({
             if (connectionManager?.isConnected != true && !isFinishing) {
-                connectUsingUsb()
+                startUsbSearch()
             }
-        }, 600)
+        }, 500)
     }
 
     private fun bindViews() {
@@ -122,10 +122,10 @@ class MainActivity : AppCompatActivity() {
                 if (connectionManager?.isConnected == true) {
                     // If streaming, back button immediately disconnects and returns to dashboard
                     connectionManager?.disconnect()
-                } else if (connectionManager?.isReconnecting == true) {
-                    connectionManager?.cancelReconnect()
-                    hideLoading()
-                    showStatusMessage("Auto-connection stopped.", isError = false)
+                } else if (connectionManager?.isSearching == true) {
+                    connectionManager?.stopAutoConnect()
+                    hideSearchingUI()
+                    showStatusMessage("Auto-search stopped.", isError = false)
                 } else {
                     // On dashboard, minimize app smoothly without killing process
                     moveTaskToBack(true)
@@ -135,14 +135,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupActionButtons() {
-        // 1. USB-C Cable Connection Button (Toggles connect or cancel auto-connect)
+        // 1. USB-C Cable Connection Button (Toggles search / stop search)
         btnConnectUsb.setOnClickListener {
-            if (connectionManager?.isReconnecting == true) {
-                connectionManager?.cancelReconnect()
-                hideLoading()
-                showStatusMessage("Auto-connection stopped. Tap button to reconnect.", isError = false)
+            if (connectionManager?.isSearching == true) {
+                connectionManager?.stopAutoConnect()
+                hideSearchingUI()
+                showStatusMessage("Auto-search stopped. Tap button to search again.", isError = false)
             } else {
-                connectUsingUsb()
+                startUsbSearch()
             }
         }
 
@@ -153,7 +153,7 @@ class MainActivity : AppCompatActivity() {
                 showStatusMessage("⚠️ Please enter Mac mini IP address", isError = true)
                 return@setOnClickListener
             }
-            connectUsingWifi(ip)
+            startWifiSearch(ip)
         }
 
         // 3. Floating HUD Disconnect Button
@@ -162,46 +162,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun connectUsingUsb() {
+    private fun startUsbSearch() {
         val holder = surfaceHolderRef ?: videoSurface.holder
-        showConnectingState("Connecting to Mac via USB Cable (127.0.0.1)...")
         if (holder.surface.isValid) {
             ensureDecoderActive(holder)
         }
-
-        connectionManager?.connectToHost(
-            host = "127.0.0.1",
-            connectionMode = "USB 5 Gbps",
-            autoRetry = true,
-            onError = { error ->
-                hideLoading()
-                showStatusMessage(
-                    "⚠️ USB Cable Connection Failed!\n1. Plug USB-C cable between Mac and Tablet.\n2. Ensure Mac background service is running.\n3. Verify Samsung Auto Blocker is OFF.",
-                    isError = true
-                )
-            }
-        )
+        showSearchingUI("🔄 Waiting for Mac mini over USB-C...\n(Plug cable — display will connect automatically)")
+        connectionManager?.startUsbAutoConnect()
     }
 
-    private fun connectUsingWifi(ip: String) {
+    private fun startWifiSearch(ip: String) {
         val holder = surfaceHolderRef ?: videoSurface.holder
-        showConnectingState("Connecting to Mac at $ip over Wi-Fi...")
         if (holder.surface.isValid) {
             ensureDecoderActive(holder)
         }
-
-        connectionManager?.connectToHost(
-            host = ip,
-            connectionMode = "Wi-Fi (Wireless)",
-            autoRetry = false,
-            onError = { error ->
-                hideLoading()
-                showStatusMessage(
-                    "⚠️ Wi-Fi Connection Failed to $ip!\n1. Make sure Mac DisplayMacServer is running.\n2. Check that both Mac and Tablet are on the same Wi-Fi network.",
-                    isError = true
-                )
-            }
-        )
+        showSearchingUI("🔄 Connecting to Mac mini at $ip over Wi-Fi...")
+        connectionManager?.startWifiAutoConnect(ip)
     }
 
     private fun ensureDecoderActive(holder: SurfaceHolder) {
@@ -216,17 +192,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showConnectingState(message: String) {
+    private fun showSearchingUI(message: String) {
         searchProgress.visibility = View.VISIBLE
         tvStatusMessage.visibility = View.VISIBLE
         tvStatusMessage.text = message
         tvStatusMessage.setTextColor(getColor(R.color.status_cyan))
-        btnConnectUsb.text = "✕ Stop Connecting"
+        btnConnectUsb.text = "✕ Stop Searching"
         btnConnectUsb.isEnabled = true
         btnConnectWifi.isEnabled = false
     }
 
-    private fun hideLoading() {
+    private fun hideSearchingUI() {
         searchProgress.visibility = View.GONE
         btnConnectUsb.text = "⚡ Connect via USB Cable"
         btnConnectUsb.isEnabled = true
@@ -244,8 +220,7 @@ class MainActivity : AppCompatActivity() {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 surfaceHolderRef = holder
                 if (connectionManager?.isConnected == true) {
-                    // Resumed from background/minimize while connected!
-                    android.util.Log.i("MainActivity", "Resuming video pipeline after minimize/resume...")
+                    android.util.Log.i("MainActivity", "Resuming video pipeline after surface recreation...")
                     ensureDecoderActive(holder)
                     connectionManager?.requestKeyframe()
                     videoSurface.visibility = View.VISIBLE
@@ -258,8 +233,6 @@ class MainActivity : AppCompatActivity() {
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 surfaceHolderRef = null
-                // Stop decoder since surface is destroyed, but DO NOT disconnect network!
-                // TCP socket & audio playback remain alive in background.
                 videoDecoder?.stopDecoder()
                 videoDecoder = null
             }
@@ -267,12 +240,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initConnectionManager() {
-        // Initialize Connection Manager with Smart Auto-Reconnect Watchdog
         val connManager = ConnectionManager(
             context = this,
             onConnected = { mode ->
-                hideLoading()
-                
+                hideSearchingUI()
+
                 // Ensure decoder is active and surface is ready
                 val holder = surfaceHolderRef ?: videoSurface.holder
                 if (holder.surface.isValid) {
@@ -281,10 +253,10 @@ class MainActivity : AppCompatActivity() {
 
                 // Start low-latency audio playback to Galaxy Tab AKG quad speakers
                 audioPlayer?.start()
-                
+
                 // Request immediate keyframe
                 connectionManager?.requestKeyframe()
-                
+
                 // Hide Dashboard and reveal 120Hz Mac desktop stream
                 dashboardLayout.animate()
                     .alpha(0f)
@@ -301,28 +273,29 @@ class MainActivity : AppCompatActivity() {
                 fpsText.text = "120 FPS"
             },
             onDisconnected = { wasUnexpected ->
-                // Stop audio playback
                 audioPlayer?.stop()
-                
-                // Return to Dashboard cleanly
+
                 dashboardLayout.bringToFront()
                 dashboardLayout.alpha = 1f
                 dashboardLayout.visibility = View.VISIBLE
                 hudOverlay.visibility = View.GONE
 
-                // Release decoder session to ensure fresh keyframe on next connect
                 videoDecoder?.stopDecoder()
                 videoDecoder = null
 
                 if (wasUnexpected) {
-                    showConnectingState("⚡ Cable disconnected or Mac sleeping. Reconnecting automatically...")
+                    showSearchingUI("⚡ Mac disconnected or restarting. Waiting to reconnect...")
                 } else {
-                    hideLoading()
-                    showStatusMessage("Session ended. Connect via USB or Wi-Fi to resume.", isError = false)
+                    hideSearchingUI()
+                    showStatusMessage("Session ended. Tap USB or Wi-Fi to connect.", isError = false)
                 }
             },
-            onReconnecting = { attempt, mode ->
-                showConnectingState("🔄 Waiting for Mac mini over $mode... (Auto-retrying #$attempt)")
+            onSearchingStatus = { attempt, mode ->
+                tvStatusMessage.visibility = View.VISIBLE
+                tvStatusMessage.text = "🔄 Waiting for Mac mini over $mode...\n(Auto-probing heartbeat... #$attempt)"
+                tvStatusMessage.setTextColor(getColor(R.color.status_cyan))
+                searchProgress.visibility = View.VISIBLE
+                btnConnectUsb.text = "✕ Stop Searching"
             },
             onVideoFrame = { nalu, ptsUs, isKeyframe ->
                 videoDecoder?.decodeNalu(nalu, ptsUs, isKeyframe)
