@@ -1,3 +1,46 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:strokeColor="#3B4DE0" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M12,19v-9M12,5a1,1 0 1,0 0.001,0zM17,10v4a2,2 0 0,1 -2,2h-1M7,10v4a2,2 0 0,0 2,2h1" />
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Center vertical stem from bottom circle to top arrow -->
+    <path
+        android:strokeColor="#3B4DE0"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,18V5" />
+    <!-- Top arrow pointing up -->
+    <path
+        android:strokeColor="#3B4DE0"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M9.5,7.5L12,5l2.5,2.5" />
+    <!-- Bottom solid circle -->
+    <path
+        android:fillColor="#3B4DE0"
+        android:pathData="M12,18.5m-1.5,0a1.5,1.5 0 1,0 3,0a1.5,1.5 0 1,0 -3,0" />
+    <!-- Left branch -->
+    <path
+        android:strokeColor="#3B4DE0"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,15H9.5a2,2 0 0,1 -2,-2V10" />
+    <!-- Left solid circle terminal -->
+    <path
+        android:fillColor="#3B4DE0"
+        android:pathData="M7.5,9m-1.5,0a1.5,1.5 0 1,0 3,0a1.5,1.5 0 1,0 -3,0" />
+    <!-- Right branch -->
+    <path
+        android:strokeColor="#3B4DE0"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,13.5h2.5a2,2 0 0,0 2,-2V9.5" />
+    <!-- Right solid square terminal -->
+    <path
+        android:fillColor="#3B4DE0"
+        android:pathData="M15.5,7h3v3h-3z" />
 </vector>

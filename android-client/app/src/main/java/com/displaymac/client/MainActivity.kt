@@ -229,10 +229,12 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    private var isWifiSearching = false
+
     private fun setupActionButtons() {
         // 1. USB-C Cable Connection Button (Toggles search or stop search)
         btnConnectUsb.setOnClickListener {
-            if (connectionManager?.isSearching == true) {
+            if (connectionManager?.isSearching == true && !isWifiSearching) {
                 connectionManager?.stopAutoConnect()
                 hideSearchingUI()
                 showStatusMessage("Ready to connect via USB-C", isError = false)
@@ -241,8 +243,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 2. Wi-Fi Wireless Connection Button
+        // 2. Wi-Fi Wireless Connection Button (Toggles Wi-Fi search or stop search)
         btnConnectWifi.setOnClickListener {
+            if (isWifiSearching) {
+                connectionManager?.stopAutoConnect()
+                hideWifiSearchingUI()
+                return@setOnClickListener
+            }
+
             val ip = if (isManualIpVisible) {
                 manualIpInput.text.toString().trim()
             } else {
@@ -250,10 +258,13 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (ip.isEmpty()) {
-                showStatusMessage("⚠️ Please enter Mac mini IP address", isError = true)
                 manualIpInput.visibility = View.VISIBLE
                 isManualIpVisible = true
-                btnToggleManualIp.text = "Use found Mac"
+                btnToggleManualIp.text = "Use the found Mac"
+                manualIpInput.requestFocus()
+                manualIpInput.error = "Please enter Mac IP address"
+                tvWifiDiscoveryStatus.text = "⚠️ Enter Mac IP address to connect"
+                tvWifiDiscoveryStatus.setTextColor(getColor(R.color.aurora_error))
                 return@setOnClickListener
             }
             startWifiSearch(ip)
@@ -286,7 +297,7 @@ class MainActivity : AppCompatActivity() {
         if (holder.surface.isValid) {
             ensureDecoderActive(holder)
         }
-        showSearchingUI("Connecting to Mac at $ip over Wi-Fi...")
+        showWifiSearchingUI(ip)
         connectionManager?.startWifiAutoConnect(ip)
     }
 
@@ -325,7 +336,41 @@ class MainActivity : AppCompatActivity() {
         btnConnectUsb.setBackgroundResource(R.drawable.btn_aurora_primary)
         btnConnectUsb.setTextColor(getColor(R.color.white))
         btnConnectUsb.isEnabled = true
+        if (!isWifiSearching) {
+            btnConnectWifi.isEnabled = true
+        }
+    }
+
+    private fun showWifiSearchingUI(ip: String) {
+        isWifiSearching = true
+        tvWifiDiscoveryStatus.text = "Connecting to $ip over Wi-Fi..."
+        tvWifiDiscoveryStatus.setTextColor(getColor(R.color.aurora_blue))
+
+        btnConnectWifi.text = "Stop searching"
+        btnConnectWifi.setBackgroundResource(R.drawable.btn_aurora_outlined)
+        btnConnectWifi.setTextColor(getColor(R.color.aurora_blue))
         btnConnectWifi.isEnabled = true
+        btnConnectUsb.isEnabled = false
+    }
+
+    private fun hideWifiSearchingUI() {
+        isWifiSearching = false
+        val displayIp = discoveredBonjourIp
+        if (displayIp != null) {
+            tvWifiDiscoveryStatus.text = "$displayIp · found via Bonjour"
+            tvWifiDiscoveryStatus.setTextColor(getColor(R.color.aurora_ink_secondary))
+            ivWifiFoundCheck.visibility = View.VISIBLE
+        } else {
+            tvWifiDiscoveryStatus.text = "Searching via Bonjour..."
+            tvWifiDiscoveryStatus.setTextColor(getColor(R.color.aurora_ink_secondary))
+            ivWifiFoundCheck.visibility = View.GONE
+        }
+
+        btnConnectWifi.text = "Connect over Wi-Fi"
+        btnConnectWifi.setBackgroundResource(R.drawable.btn_aurora_tonal)
+        btnConnectWifi.setTextColor(getColor(R.color.aurora_blue_dark))
+        btnConnectWifi.isEnabled = true
+        btnConnectUsb.isEnabled = true
     }
 
     private fun showStatusMessage(message: String, isError: Boolean) {
@@ -363,12 +408,18 @@ class MainActivity : AppCompatActivity() {
             context = this,
             onConnected = { mode ->
                 hideSearchingUI()
+                hideWifiSearchingUI()
 
-                // Update USB card status to connected
-                searchProgress.visibility = View.GONE
-                ivUsbStatusIcon.visibility = View.VISIBLE
-                ivUsbStatusIcon.setImageResource(R.drawable.ic_check_circle)
-                tvStatusMessage.text = "Streaming at 120 Hz"
+                if (mode.contains("Wi-Fi")) {
+                    tvWifiDiscoveryStatus.text = "Streaming over Wi-Fi at 120 Hz"
+                    ivWifiFoundCheck.visibility = View.VISIBLE
+                } else {
+                    // Update USB card status to connected
+                    searchProgress.visibility = View.GONE
+                    ivUsbStatusIcon.visibility = View.VISIBLE
+                    ivUsbStatusIcon.setImageResource(R.drawable.ic_check_circle)
+                    tvStatusMessage.text = "Streaming at 120 Hz"
+                }
 
                 // Ensure decoder is active and surface is ready
                 val holder = surfaceHolderRef ?: videoSurface.holder
@@ -408,20 +459,28 @@ class MainActivity : AppCompatActivity() {
                 videoDecoder?.stopDecoder()
                 videoDecoder = null
 
+                hideSearchingUI()
+                hideWifiSearchingUI()
+
                 if (wasUnexpected) {
-                    showSearchingUI("Waiting for Mac to reconnect...")
+                    showStatusMessage("Connection lost. Reconnect when ready.", isError = true)
                 } else {
-                    hideSearchingUI()
-                    showStatusMessage("Session ended. Ready to connect.", isError = false)
+                    showStatusMessage("Ready to connect via USB-C", isError = false)
                 }
             },
             onSearchingStatus = { attempt, mode ->
-                tvStatusMessage.visibility = View.VISIBLE
-                tvStatusMessage.text = "Looking for your Mac over USB-C... (#$attempt)"
-                tvStatusMessage.setTextColor(getColor(R.color.aurora_ink_tertiary))
-                searchProgress.visibility = View.VISIBLE
-                ivUsbStatusIcon.visibility = View.GONE
-                btnConnectUsb.text = "Stop searching"
+                if (mode.contains("Wi-Fi")) {
+                    tvWifiDiscoveryStatus.text = "Connecting to Wi-Fi... (#$attempt)"
+                    tvWifiDiscoveryStatus.setTextColor(getColor(R.color.aurora_blue))
+                    btnConnectWifi.text = "Stop searching"
+                } else {
+                    tvStatusMessage.visibility = View.VISIBLE
+                    tvStatusMessage.text = "Looking for your Mac over USB-C... (#$attempt)"
+                    tvStatusMessage.setTextColor(getColor(R.color.aurora_ink_tertiary))
+                    searchProgress.visibility = View.VISIBLE
+                    ivUsbStatusIcon.visibility = View.GONE
+                    btnConnectUsb.text = "Stop searching"
+                }
             },
             onVideoFrame = { nalu, ptsUs, isKeyframe ->
                 videoDecoder?.decodeNalu(nalu, ptsUs, isKeyframe)
