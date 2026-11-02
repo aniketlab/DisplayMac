@@ -268,12 +268,15 @@
                             <LinearLayout
                                 android:id="@+id/layoutUsbStatus"
                                 android:layout_width="match_parent"
-                                android:layout_height="38dp"
+                                android:layout_height="wrap_content"
+                                android:minHeight="48dp"
                                 android:layout_marginTop="14dp"
                                 android:layout_marginBottom="12dp"
                                 android:background="@drawable/status_pill_bg"
                                 android:paddingStart="12dp"
                                 android:paddingEnd="12dp"
+                                android:paddingTop="7dp"
+                                android:paddingBottom="7dp"
                                 android:orientation="horizontal"
                                 android:gravity="center_vertical">
 
@@ -302,6 +305,7 @@
                                     android:text="Ready to connect via USB-C"
                                     android:textColor="@color/aurora_ink_tertiary"
                                     android:textSize="12sp"
+                                    android:includeFontPadding="false"
                                     android:maxLines="1"
                                     android:ellipsize="end" />
                             </LinearLayout>
@@ -418,10 +422,13 @@
                                 <LinearLayout
                                     android:id="@+id/layoutFoundMac"
                                     android:layout_width="match_parent"
-                                    android:layout_height="38dp"
+                                    android:layout_height="wrap_content"
+                                    android:minHeight="48dp"
                                     android:background="@drawable/status_pill_bg"
                                     android:paddingStart="12dp"
                                     android:paddingEnd="12dp"
+                                    android:paddingTop="7dp"
+                                    android:paddingBottom="7dp"
                                     android:orientation="horizontal"
                                     android:gravity="center_vertical">
 
@@ -444,15 +451,18 @@
                                             android:text="Mac mini M4"
                                             android:textColor="@color/aurora_ink"
                                             android:textSize="12sp"
-                                            android:fontFamily="sans-serif-medium" />
+                                            android:fontFamily="sans-serif-medium"
+                                            android:includeFontPadding="false" />
 
                                         <TextView
                                             android:id="@+id/tvWifiDiscoveryStatus"
                                             android:layout_width="wrap_content"
                                             android:layout_height="wrap_content"
+                                            android:layout_marginTop="2dp"
                                             android:text="Searching via Bonjour..."
                                             android:textColor="@color/aurora_ink_secondary"
-                                            android:textSize="11sp" />
+                                            android:textSize="11sp"
+                                            android:includeFontPadding="false" />
                                     </LinearLayout>
 
                                     <ImageView
