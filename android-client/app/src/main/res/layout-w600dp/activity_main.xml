@@ -162,12 +162,12 @@
                         <!-- Left Card: USB-C Cable (Recommended) -->
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_height="match_parent"
+                            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="10dp"
                             android:background="@drawable/card_aurora_bg"
                             android:orientation="vertical"
-                            android:padding="20dp">
+                            android:padding="18dp">
 
                             <!-- Top Tag: Recommended -->
                             <TextView
@@ -269,12 +269,12 @@
                             <LinearLayout
                                 android:id="@+id/layoutUsbStatus"
                                 android:layout_width="match_parent"
-                                android:layout_height="36dp"
-                                android:layout_marginTop="14dp"
-                                android:layout_marginBottom="10dp"
+                                android:layout_height="38dp"
+                                android:layout_marginTop="12dp"
+                                android:layout_marginBottom="26dp"
                                 android:background="@drawable/status_pill_bg"
-                                android:paddingStart="10dp"
-                                android:paddingEnd="10dp"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="12dp"
                                 android:orientation="horizontal"
                                 android:gravity="center_vertical">
 
@@ -307,13 +307,6 @@
                                     android:ellipsize="end" />
                             </LinearLayout>
 
-                            <!-- Flexible spacer pushes button to bottom so both cards are equal height -->
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="0dp"
-                                android:layout_weight="1"
-                                android:minHeight="14dp" />
-
                             <!-- USB Connect / Stop Action Button -->
                             <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btnConnectUsb"
@@ -330,12 +323,12 @@
                         <!-- Right Card: Wi-Fi (Wireless) -->
                         <LinearLayout
                             android:layout_width="0dp"
-                            android:layout_height="match_parent"
+                            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="10dp"
                             android:background="@drawable/card_aurora_bg"
                             android:orientation="vertical"
-                            android:padding="20dp">
+                            android:padding="18dp">
 
                             <!-- Top Tag: Wireless -->
                             <TextView
@@ -505,13 +498,6 @@
                                     android:textSize="12sp"
                                     android:padding="2dp" />
                             </LinearLayout>
-
-                            <!-- Flexible spacer pushes button to bottom so both cards are equal height -->
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="0dp"
-                                android:layout_weight="1"
-                                android:minHeight="14dp" />
 
                             <!-- Wi-Fi Connect Action Button -->
                             <androidx.appcompat.widget.AppCompatButton
