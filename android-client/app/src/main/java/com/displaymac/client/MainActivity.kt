@@ -111,13 +111,6 @@ class MainActivity : AppCompatActivity() {
 
         // Prepare SurfaceView
         setupSurface()
-
-        // Auto-search and connect over USB-C on launch (Headless Ready)
-        videoSurface.postDelayed({
-            if (connectionManager?.isConnected != true && !isFinishing) {
-                startUsbSearch()
-            }
-        }, 500)
     }
 
     private fun bindViews() {
@@ -242,7 +235,7 @@ class MainActivity : AppCompatActivity() {
             if (connectionManager?.isSearching == true) {
                 connectionManager?.stopAutoConnect()
                 hideSearchingUI()
-                showStatusMessage("Search paused. Tap button to search again.", isError = false)
+                showStatusMessage("Ready to connect via USB-C", isError = false)
             } else {
                 startUsbSearch()
             }
@@ -326,7 +319,7 @@ class MainActivity : AppCompatActivity() {
     private fun hideSearchingUI() {
         searchProgress.visibility = View.GONE
         ivUsbStatusIcon.visibility = View.VISIBLE
-        ivUsbStatusIcon.setImageResource(R.drawable.ic_pause)
+        ivUsbStatusIcon.setImageResource(R.drawable.ic_usb)
 
         btnConnectUsb.text = "Connect with USB-C"
         btnConnectUsb.setBackgroundResource(R.drawable.btn_aurora_primary)
