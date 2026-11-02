@@ -100,14 +100,13 @@
                     </LinearLayout>
                 </RelativeLayout>
 
-                <!-- Center Content Column (Max width 560dp, tightly centered) -->
+                <!-- Center Content Column -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="8dp"
                     android:orientation="vertical"
-                    android:gravity="center_horizontal"
-                    android:maxWidth="560dp">
+                    android:gravity="center_horizontal">
 
                     <!-- 2. Hero Section -->
                     <LinearLayout
@@ -152,9 +151,9 @@
                             android:fontFamily="sans-serif" />
                     </LinearLayout>
 
-                    <!-- 3. Connection Cards Grid (Centered, 600dp width, equal height cards) -->
+                    <!-- 3. Connection Cards Grid (Responsive Tablet Width, equal height cards) -->
                     <LinearLayout
-                        android:layout_width="600dp"
+                        android:layout_width="@dimen/tablet_cards_width"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
                         android:orientation="horizontal"
@@ -165,10 +164,10 @@
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginEnd="10dp"
                             android:background="@drawable/card_aurora_bg"
                             android:orientation="vertical"
-                            android:padding="18dp">
+                            android:padding="20dp">
 
                             <!-- Top Tag: Recommended -->
                             <TextView
@@ -319,7 +318,7 @@
                             <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btnConnectUsb"
                                 android:layout_width="match_parent"
-                                android:layout_height="42dp"
+                                android:layout_height="44dp"
                                 android:background="@drawable/btn_aurora_primary"
                                 android:text="Connect with USB-C"
                                 android:textColor="@color/white"
@@ -333,10 +332,10 @@
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
-                            android:layout_marginStart="8dp"
+                            android:layout_marginStart="10dp"
                             android:background="@drawable/card_aurora_bg"
                             android:orientation="vertical"
-                            android:padding="18dp">
+                            android:padding="20dp">
 
                             <!-- Top Tag: Wireless -->
                             <TextView
@@ -518,7 +517,7 @@
                             <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btnConnectWifi"
                                 android:layout_width="match_parent"
-                                android:layout_height="42dp"
+                                android:layout_height="44dp"
                                 android:background="@drawable/btn_aurora_tonal"
                                 android:text="Connect over Wi-Fi"
                                 android:textColor="@color/aurora_blue_dark"
@@ -528,17 +527,17 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 4. Bottom Feature Strip (S Pen ready, Native 120Hz, HEVC decoding, Main or extra) -->
+                    <!-- 4. Bottom Feature Strip (Responsive Tablet Width, 4 Spaced Pillars) -->
                     <LinearLayout
-                        android:layout_width="600dp"
+                        android:layout_width="@dimen/tablet_cards_width"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
                         android:layout_marginTop="16dp"
                         android:background="@drawable/card_aurora_bg"
                         android:orientation="horizontal"
-                        android:paddingStart="8dp"
+                        android:paddingStart="12dp"
                         android:paddingTop="12dp"
-                        android:paddingEnd="8dp"
+                        android:paddingEnd="12dp"
                         android:paddingBottom="12dp"
                         android:baselineAligned="false">
 

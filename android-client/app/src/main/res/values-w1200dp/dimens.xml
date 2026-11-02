@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ultra Tablet Landscape / Galaxy Tab S10 Ultra (>= 1200dp) -->
+    <dimen name="tablet_cards_width">980dp</dimen>
+</resources>

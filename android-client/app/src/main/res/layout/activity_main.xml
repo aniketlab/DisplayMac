@@ -170,16 +170,16 @@
                             android:layout_height="wrap_content"
                             android:background="@drawable/card_aurora_bg"
                             android:orientation="vertical"
-                            android:padding="14dp">
+                            android:padding="18dp">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/badge_recommended"
-                                android:paddingStart="9dp"
-                                android:paddingTop="2dp"
-                                android:paddingEnd="9dp"
-                                android:paddingBottom="2dp"
+                                android:paddingStart="10dp"
+                                android:paddingTop="3dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="3dp"
                                 android:text="Recommended"
                                 android:textColor="@color/aurora_blue_dark"
                                 android:textSize="11sp"
@@ -188,13 +188,13 @@
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="6dp"
+                                android:layout_marginTop="10dp"
                                 android:orientation="horizontal"
                                 android:gravity="center_vertical">
 
                                 <ImageView
-                                    android:layout_width="16dp"
-                                    android:layout_height="16dp"
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
                                     android:src="@drawable/ic_usb" />
 
                                 <TextView
@@ -203,93 +203,93 @@
                                     android:layout_marginStart="8dp"
                                     android:text="USB-C cable"
                                     android:textColor="@color/aurora_ink"
-                                    android:textSize="15sp"
+                                    android:textSize="16sp"
                                     android:fontFamily="sans-serif-medium" />
                             </LinearLayout>
 
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="5dp"
+                                android:layout_marginTop="8dp"
                                 android:orientation="horizontal">
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:background="@drawable/chip_spec"
-                                    android:paddingStart="7dp"
-                                    android:paddingTop="2dp"
-                                    android:paddingEnd="7dp"
-                                    android:paddingBottom="2dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="3dp"
                                     android:text="5 Gbps"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="10sp" />
+                                    android:textSize="11sp" />
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginStart="4dp"
                                     android:background="@drawable/chip_spec"
-                                    android:paddingStart="7dp"
-                                    android:paddingTop="2dp"
-                                    android:paddingEnd="7dp"
-                                    android:paddingBottom="2dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="3dp"
                                     android:text="&lt; 1 ms"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="10sp" />
+                                    android:textSize="11sp" />
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginStart="4dp"
                                     android:background="@drawable/chip_spec"
-                                    android:paddingStart="7dp"
-                                    android:paddingTop="2dp"
-                                    android:paddingEnd="7dp"
-                                    android:paddingBottom="2dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="3dp"
                                     android:text="85 Mbps"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="10sp" />
+                                    android:textSize="11sp" />
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginStart="4dp"
                                     android:background="@drawable/chip_spec"
-                                    android:paddingStart="7dp"
-                                    android:paddingTop="2dp"
-                                    android:paddingEnd="7dp"
-                                    android:paddingBottom="2dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="3dp"
                                     android:text="120 FPS"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="10sp" />
+                                    android:textSize="11sp" />
                             </LinearLayout>
 
                             <LinearLayout
                                 android:id="@+id/layoutUsbStatus"
                                 android:layout_width="match_parent"
-                                android:layout_height="34dp"
-                                android:layout_marginTop="10dp"
-                                android:layout_marginBottom="8dp"
+                                android:layout_height="38dp"
+                                android:layout_marginTop="14dp"
+                                android:layout_marginBottom="12dp"
                                 android:background="@drawable/status_pill_bg"
-                                android:paddingStart="10dp"
-                                android:paddingEnd="10dp"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="12dp"
                                 android:orientation="horizontal"
                                 android:gravity="center_vertical">
 
                                 <ProgressBar
                                     android:id="@+id/searchProgress"
                                     style="?android:attr/progressBarStyleSmall"
-                                    android:layout_width="14dp"
-                                    android:layout_height="14dp"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
                                     android:indeterminate="true"
                                     android:indeterminateTint="@color/aurora_blue"
                                     android:visibility="gone" />
 
                                 <ImageView
                                     android:id="@+id/ivUsbStatusIcon"
-                                    android:layout_width="14dp"
-                                    android:layout_height="14dp"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
                                     android:src="@drawable/ic_usb"
                                     android:visibility="visible" />
 
@@ -301,7 +301,7 @@
                                     android:layout_marginStart="8dp"
                                     android:text="Ready to connect via USB-C"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="11sp"
+                                    android:textSize="12sp"
                                     android:maxLines="1"
                                     android:ellipsize="end" />
                             </LinearLayout>
@@ -309,11 +309,11 @@
                             <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btnConnectUsb"
                                 android:layout_width="match_parent"
-                                android:layout_height="40dp"
+                                android:layout_height="44dp"
                                 android:background="@drawable/btn_aurora_primary"
                                 android:text="Connect with USB-C"
                                 android:textColor="@color/white"
-                                android:textSize="13sp"
+                                android:textSize="14sp"
                                 android:textAllCaps="false"
                                 android:fontFamily="sans-serif-medium" />
                         </LinearLayout>
@@ -322,19 +322,19 @@
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
+                            android:layout_marginTop="16dp"
                             android:background="@drawable/card_aurora_bg"
                             android:orientation="vertical"
-                            android:padding="14dp">
+                            android:padding="18dp">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/badge_wireless"
-                                android:paddingStart="9dp"
-                                android:paddingTop="2dp"
-                                android:paddingEnd="9dp"
-                                android:paddingBottom="2dp"
+                                android:paddingStart="10dp"
+                                android:paddingTop="3dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="3dp"
                                 android:text="Wireless"
                                 android:textColor="@color/aurora_sky_dark"
                                 android:textSize="11sp"
@@ -343,13 +343,13 @@
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="6dp"
+                                android:layout_marginTop="10dp"
                                 android:orientation="horizontal"
                                 android:gravity="center_vertical">
 
                                 <ImageView
-                                    android:layout_width="16dp"
-                                    android:layout_height="16dp"
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
                                     android:src="@drawable/ic_wifi" />
 
                                 <TextView
@@ -358,76 +358,76 @@
                                     android:layout_marginStart="8dp"
                                     android:text="Wi-Fi"
                                     android:textColor="@color/aurora_ink"
-                                    android:textSize="15sp"
+                                    android:textSize="16sp"
                                     android:fontFamily="sans-serif-medium" />
                             </LinearLayout>
 
                             <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="5dp"
+                                android:layout_marginTop="8dp"
                                 android:orientation="horizontal">
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:background="@drawable/chip_spec"
-                                    android:paddingStart="7dp"
-                                    android:paddingTop="2dp"
-                                    android:paddingEnd="7dp"
-                                    android:paddingBottom="2dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="3dp"
                                     android:text="Wi-Fi 6E / 7"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="10sp" />
+                                    android:textSize="11sp" />
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginStart="4dp"
                                     android:background="@drawable/chip_spec"
-                                    android:paddingStart="7dp"
-                                    android:paddingTop="2dp"
-                                    android:paddingEnd="7dp"
-                                    android:paddingBottom="2dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="3dp"
                                     android:text="Adaptive bitrate"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="10sp" />
+                                    android:textSize="11sp" />
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginStart="4dp"
                                     android:background="@drawable/chip_spec"
-                                    android:paddingStart="7dp"
-                                    android:paddingTop="2dp"
-                                    android:paddingEnd="7dp"
-                                    android:paddingBottom="2dp"
+                                    android:paddingStart="8dp"
+                                    android:paddingTop="3dp"
+                                    android:paddingEnd="8dp"
+                                    android:paddingBottom="3dp"
                                     android:text="120 FPS"
                                     android:textColor="@color/aurora_ink_tertiary"
-                                    android:textSize="10sp" />
+                                    android:textSize="11sp" />
                             </LinearLayout>
 
                             <LinearLayout
                                 android:id="@+id/layoutWifiDiscovery"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="10dp"
-                                android:layout_marginBottom="8dp"
+                                android:layout_marginTop="14dp"
+                                android:layout_marginBottom="12dp"
                                 android:orientation="vertical">
 
                                 <LinearLayout
                                     android:id="@+id/layoutFoundMac"
                                     android:layout_width="match_parent"
-                                    android:layout_height="34dp"
+                                    android:layout_height="38dp"
                                     android:background="@drawable/status_pill_bg"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
+                                    android:paddingStart="12dp"
+                                    android:paddingEnd="12dp"
                                     android:orientation="horizontal"
                                     android:gravity="center_vertical">
 
                                     <ImageView
-                                        android:layout_width="14dp"
-                                        android:layout_height="14dp"
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
                                         android:src="@drawable/ic_device_desktop" />
 
                                     <LinearLayout
@@ -443,7 +443,7 @@
                                             android:layout_height="wrap_content"
                                             android:text="Mac mini M4"
                                             android:textColor="@color/aurora_ink"
-                                            android:textSize="11sp"
+                                            android:textSize="12sp"
                                             android:fontFamily="sans-serif-medium" />
 
                                         <TextView
@@ -452,13 +452,13 @@
                                             android:layout_height="wrap_content"
                                             android:text="Searching via Bonjour..."
                                             android:textColor="@color/aurora_ink_secondary"
-                                            android:textSize="10sp" />
+                                            android:textSize="11sp" />
                                     </LinearLayout>
 
                                     <ImageView
                                         android:id="@+id/ivWifiFoundCheck"
-                                        android:layout_width="14dp"
-                                        android:layout_height="14dp"
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
                                         android:src="@drawable/ic_check_circle"
                                         android:visibility="gone" />
                                 </LinearLayout>
@@ -466,15 +466,15 @@
                                 <EditText
                                     android:id="@+id/manualIpInput"
                                     android:layout_width="match_parent"
-                                    android:layout_height="36dp"
-                                    android:layout_marginTop="5dp"
+                                    android:layout_height="40dp"
+                                    android:layout_marginTop="8dp"
                                     android:background="@drawable/edittext_aurora"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
+                                    android:paddingStart="12dp"
+                                    android:paddingEnd="12dp"
                                     android:hint="Mac IP, e.g. 192.168.1.17"
                                     android:textColor="@color/aurora_ink"
                                     android:textColorHint="@color/aurora_ink_secondary"
-                                    android:textSize="12sp"
+                                    android:textSize="13sp"
                                     android:inputType="textUri"
                                     android:visibility="gone" />
 
@@ -482,21 +482,21 @@
                                     android:id="@+id/btnToggleManualIp"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginTop="3dp"
+                                    android:layout_marginTop="6dp"
                                     android:text="Enter IP manually"
                                     android:textColor="@color/aurora_blue"
-                                    android:textSize="11sp"
-                                    android:padding="2dp" />
+                                    android:textSize="12sp"
+                                    android:padding="4dp" />
                             </LinearLayout>
 
                             <androidx.appcompat.widget.AppCompatButton
                                 android:id="@+id/btnConnectWifi"
                                 android:layout_width="match_parent"
-                                android:layout_height="40dp"
+                                android:layout_height="44dp"
                                 android:background="@drawable/btn_aurora_tonal"
                                 android:text="Connect over Wi-Fi"
                                 android:textColor="@color/aurora_blue_dark"
-                                android:textSize="13sp"
+                                android:textSize="14sp"
                                 android:textAllCaps="false"
                                 android:fontFamily="sans-serif-medium" />
                         </LinearLayout>
@@ -506,10 +506,11 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="16dp"
                         android:background="@drawable/card_aurora_bg"
                         android:orientation="vertical"
-                        android:padding="10dp">
+                        android:padding="14dp">
 
                         <!-- Row 1: S Pen ready + Native 120 Hz -->
                         <LinearLayout
@@ -527,13 +528,13 @@
                                 android:padding="4dp">
 
                                 <FrameLayout
-                                    android:layout_width="26dp"
-                                    android:layout_height="26dp"
+                                    android:layout_width="30dp"
+                                    android:layout_height="30dp"
                                     android:background="@drawable/feature_circle_bg">
 
                                     <ImageView
-                                        android:layout_width="14dp"
-                                        android:layout_height="14dp"
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
                                         android:layout_gravity="center"
                                         android:src="@drawable/ic_pencil" />
                                 </FrameLayout>
@@ -541,7 +542,7 @@
                                 <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginStart="6dp"
+                                    android:layout_marginStart="8dp"
                                     android:orientation="vertical">
 
                                     <TextView
@@ -549,7 +550,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="S Pen ready"
                                         android:textColor="@color/aurora_ink"
-                                        android:textSize="11sp"
+                                        android:textSize="12sp"
                                         android:fontFamily="sans-serif-medium" />
 
                                     <TextView
@@ -557,7 +558,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="Pressure, tilt and hover"
                                         android:textColor="@color/aurora_ink_secondary"
-                                        android:textSize="10sp" />
+                                        android:textSize="11sp" />
                                 </LinearLayout>
                             </LinearLayout>
 
@@ -570,13 +571,13 @@
                                 android:padding="4dp">
 
                                 <FrameLayout
-                                    android:layout_width="26dp"
-                                    android:layout_height="26dp"
+                                    android:layout_width="30dp"
+                                    android:layout_height="30dp"
                                     android:background="@drawable/feature_circle_bg">
 
                                     <ImageView
-                                        android:layout_width="14dp"
-                                        android:layout_height="14dp"
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
                                         android:layout_gravity="center"
                                         android:src="@drawable/ic_gauge" />
                                 </FrameLayout>
@@ -584,7 +585,7 @@
                                 <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginStart="6dp"
+                                    android:layout_marginStart="8dp"
                                     android:orientation="vertical">
 
                                     <TextView
@@ -592,7 +593,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="Native 120 Hz"
                                         android:textColor="@color/aurora_ink"
-                                        android:textSize="11sp"
+                                        android:textSize="12sp"
                                         android:fontFamily="sans-serif-medium" />
 
                                     <TextView
@@ -600,7 +601,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="Full resolution, no bars"
                                         android:textColor="@color/aurora_ink_secondary"
-                                        android:textSize="10sp" />
+                                        android:textSize="11sp" />
                                 </LinearLayout>
                             </LinearLayout>
                         </LinearLayout>
@@ -609,7 +610,7 @@
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
+                            android:layout_marginTop="10dp"
                             android:orientation="horizontal"
                             android:baselineAligned="false">
 
@@ -622,13 +623,13 @@
                                 android:padding="4dp">
 
                                 <FrameLayout
-                                    android:layout_width="26dp"
-                                    android:layout_height="26dp"
+                                    android:layout_width="30dp"
+                                    android:layout_height="30dp"
                                     android:background="@drawable/feature_circle_bg">
 
                                     <ImageView
-                                        android:layout_width="14dp"
-                                        android:layout_height="14dp"
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
                                         android:layout_gravity="center"
                                         android:src="@drawable/ic_bolt" />
                                 </FrameLayout>
@@ -636,7 +637,7 @@
                                 <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginStart="6dp"
+                                    android:layout_marginStart="8dp"
                                     android:orientation="vertical">
 
                                     <TextView
@@ -644,7 +645,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="HEVC decoding"
                                         android:textColor="@color/aurora_ink"
-                                        android:textSize="11sp"
+                                        android:textSize="12sp"
                                         android:fontFamily="sans-serif-medium" />
 
                                     <TextView
@@ -652,7 +653,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="Hardware, low latency"
                                         android:textColor="@color/aurora_ink_secondary"
-                                        android:textSize="10sp" />
+                                        android:textSize="11sp" />
                                 </LinearLayout>
                             </LinearLayout>
 
@@ -665,13 +666,13 @@
                                 android:padding="4dp">
 
                                 <FrameLayout
-                                    android:layout_width="26dp"
-                                    android:layout_height="26dp"
+                                    android:layout_width="30dp"
+                                    android:layout_height="30dp"
                                     android:background="@drawable/feature_circle_bg">
 
                                     <ImageView
-                                        android:layout_width="14dp"
-                                        android:layout_height="14dp"
+                                        android:layout_width="16dp"
+                                        android:layout_height="16dp"
                                         android:layout_gravity="center"
                                         android:src="@drawable/ic_devices" />
                                 </FrameLayout>
@@ -679,7 +680,7 @@
                                 <LinearLayout
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginStart="6dp"
+                                    android:layout_marginStart="8dp"
                                     android:orientation="vertical">
 
                                     <TextView
@@ -687,7 +688,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="Main or extra"
                                         android:textColor="@color/aurora_ink"
-                                        android:textSize="11sp"
+                                        android:textSize="12sp"
                                         android:fontFamily="sans-serif-medium" />
 
                                     <TextView
@@ -695,7 +696,7 @@
                                         android:layout_height="wrap_content"
                                         android:text="Use as Mac's display"
                                         android:textColor="@color/aurora_ink_secondary"
-                                        android:textSize="10sp" />
+                                        android:textSize="11sp" />
                                 </LinearLayout>
                             </LinearLayout>
                         </LinearLayout>

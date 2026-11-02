@@ -262,8 +262,7 @@ class MainActivity : AppCompatActivity() {
                 isManualIpVisible = true
                 btnToggleManualIp.text = "Use the found Mac"
                 manualIpInput.requestFocus()
-                manualIpInput.error = "Please enter Mac IP address"
-                tvWifiDiscoveryStatus.text = "⚠️ Enter Mac IP address to connect"
+                tvWifiDiscoveryStatus.text = "⚠️ Please enter Mac IP address"
                 tvWifiDiscoveryStatus.setTextColor(getColor(R.color.aurora_error))
                 return@setOnClickListener
             }

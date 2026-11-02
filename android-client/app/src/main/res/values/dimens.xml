@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Default / Mobile Dimensions -->
+    <dimen name="tablet_cards_width">880dp</dimen>
+</resources>
