@@ -60,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ivWifiFoundCheck: ImageView
     private lateinit var manualIpInput: EditText
     private lateinit var btnToggleManualIp: TextView
+    private var viewUsbManualIpSpacer: View? = null
 
     // Core Managers & Engines
     private lateinit var displayModeManager: DisplayModeManager
@@ -138,6 +139,7 @@ class MainActivity : AppCompatActivity() {
         ivWifiFoundCheck = findViewById(R.id.ivWifiFoundCheck)
         manualIpInput = findViewById(R.id.manualIpInput)
         btnToggleManualIp = findViewById(R.id.btnToggleManualIp)
+        viewUsbManualIpSpacer = findViewById(R.id.viewUsbManualIpSpacer)
     }
 
     /**
@@ -260,6 +262,7 @@ class MainActivity : AppCompatActivity() {
             if (ip.isEmpty()) {
                 manualIpInput.visibility = View.VISIBLE
                 isManualIpVisible = true
+                viewUsbManualIpSpacer?.visibility = View.VISIBLE
                 btnToggleManualIp.text = "Use the found Mac"
                 manualIpInput.requestFocus()
                 tvWifiDiscoveryStatus.text = "⚠️ Please enter Mac IP address"
@@ -273,6 +276,7 @@ class MainActivity : AppCompatActivity() {
         btnToggleManualIp.setOnClickListener {
             isManualIpVisible = !isManualIpVisible
             manualIpInput.visibility = if (isManualIpVisible) View.VISIBLE else View.GONE
+            viewUsbManualIpSpacer?.visibility = if (isManualIpVisible) View.VISIBLE else View.GONE
             btnToggleManualIp.text = if (isManualIpVisible) "Use the found Mac" else "Enter IP manually"
         }
 
