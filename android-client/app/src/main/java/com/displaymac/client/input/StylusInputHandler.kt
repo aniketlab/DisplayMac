@@ -83,22 +83,14 @@ class StylusInputHandler(
         val pressure = event.pressure.coerceIn(0f, 1f)
         val tilt = event.getAxisValue(MotionEvent.AXIS_TILT)
 
-        // S-Pen side button (secondary click)
+        // Stylus side button (secondary click)
         val isButtonPressed = (event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY) != 0
         val buttonByte: Byte = if (isButtonPressed) 0x01 else 0x00
 
-        val actionByte: Byte = when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> ProtocolConstants.TouchAction.TAP // Down
-            MotionEvent.ACTION_MOVE -> ProtocolConstants.TouchAction.DOUBLE_TAP // Move / Drag
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ProtocolConstants.TouchAction.RIGHT_CLICK // Up
-            else -> return true
-        }
-
-        // Action byte matches StylusAction constants (1=down, 2=move, 3=up)
         val stylusAction: Byte = when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> 0x01
-            MotionEvent.ACTION_MOVE -> 0x02
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> 0x03
+            MotionEvent.ACTION_DOWN -> ProtocolConstants.StylusAction.DOWN
+            MotionEvent.ACTION_MOVE -> ProtocolConstants.StylusAction.MOVE
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> ProtocolConstants.StylusAction.UP
             else -> return true
         }
 
@@ -345,6 +337,7 @@ class StylusInputHandler(
                         lastTapUpTime = 0L
                     } else {
                         // Single Tap (Instant Click + Hide Mouse Cursor)
+                        view.performClick()
                         sendControlPacket(
                             ProtocolConstants.buildTouchPacket(
                                 action = ProtocolConstants.TouchAction.TAP,
@@ -425,7 +418,7 @@ class StylusInputHandler(
                 val normY = (event.y / height).coerceIn(0f, 1f)
 
                 val packet = ProtocolConstants.buildStylusPacket(
-                    action = 0x04, // Hover
+                    action = ProtocolConstants.StylusAction.HOVER,
                     buttons = 0x00,
                     normX = normX,
                     normY = normY,
@@ -437,7 +430,7 @@ class StylusInputHandler(
             }
             MotionEvent.ACTION_HOVER_EXIT -> {
                 val packet = ProtocolConstants.buildStylusPacket(
-                    action = 0x05, // Hover Exit (Proximity Leave)
+                    action = ProtocolConstants.StylusAction.HOVER_EXIT,
                     buttons = 0x00,
                     normX = 0f,
                     normY = 0f,

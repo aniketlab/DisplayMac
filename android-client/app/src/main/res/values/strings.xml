@@ -1,6 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DisplayMac</string>
-    <string name="status_connecting">Connecting to Mac mini...</string>
-    <string name="status_connected">Connected (120Hz Low Latency)</string>
-    <string name="status_disconnected">Disconnected</string>
+    <string name="content_desc_brand_logo">DisplayMac logo</string>
+
+    <string name="hero_title_default">Connect to Mac</string>
+    <string name="hero_title_format">Connect to %1$s</string>
+    <string name="hero_subtitle_default">Pick how to connect your device</string>
+    <string name="hero_subtitle_format">Pick how to connect your %1$s</string>
+    <string name="device_specs_format">%1$s · %2$d × %3$d · %4$d Hz</string>
+
+    <string name="badge_recommended">Recommended</string>
+    <string name="badge_wireless">Wireless</string>
+
+    <string name="usb_card_title">USB-C cable</string>
+    <string name="wifi_card_title">Wi-Fi</string>
+
+    <string name="chip_usb_wired">Wired</string>
+    <string name="chip_low_latency">Low latency</string>
+    <string name="chip_usb_bitrate">60 Mbps</string>
+    <string name="chip_wifi_standard">Wi-Fi 6 / 6E</string>
+    <string name="chip_wifi_bitrate">35 Mbps</string>
+    <string name="chip_fps_format">%1$d FPS</string>
+
+    <string name="usb_status_ready">Ready to connect via USB-C</string>
+    <string name="usb_status_searching">Looking for your Mac over USB-C…</string>
+    <string name="usb_status_searching_attempt">Looking for your Mac over USB-C… (#%1$d)</string>
+    <string name="usb_status_paused">Search paused.</string>
+    <string name="usb_status_disconnected_unexpected">Connection lost. Reconnect when ready.</string>
+    <string name="usb_status_streaming_hz">Streaming at %1$d Hz</string>
+
+    <string name="mac_discovered_default_title">Mac on local network</string>
+    <string name="wifi_status_searching_bonjour">Searching via Bonjour…</string>
+    <string name="wifi_status_found_bonjour">%1$s · found via Bonjour</string>
+    <string name="wifi_status_connecting">Connecting to %1$s over Wi-Fi…</string>
+    <string name="wifi_status_connecting_attempt">Connecting to Wi-Fi… (#%1$d)</string>
+    <string name="wifi_status_streaming_hz">Streaming over Wi-Fi at %1$d Hz</string>
+    <string name="wifi_error_enter_ip">Please enter a valid Mac IP address</string>
+
+    <string name="btn_connect_usb">Connect with USB-C</string>
+    <string name="btn_connect_wifi">Connect over Wi-Fi</string>
+    <string name="btn_stop_searching">Stop searching</string>
+    <string name="btn_enter_ip_manually">Enter IP manually</string>
+    <string name="btn_use_found_mac">Use discovered Mac</string>
+    <string name="hint_mac_ip">Mac IP, e.g. 192.168.1.17</string>
+
+    <string name="feature_stylus_title">Stylus ready</string>
+    <string name="feature_spen_title">S Pen ready</string>
+    <string name="feature_stylus_sub">Pressure, tilt and hover</string>
+    <string name="feature_refresh_format">Native %1$d Hz</string>
+    <string name="feature_refresh_sub">Full resolution, no bars</string>
+    <string name="feature_hevc_title">HEVC decoding</string>
+    <string name="feature_hevc_sub">Hardware, low latency</string>
+    <string name="feature_display_title">Main or extra</string>
+    <string name="feature_display_sub">Use as Mac\'s display</string>
+
+    <string name="hud_connected_format">Connected (%1$s)</string>
+    <string name="hud_disconnect">Disconnect</string>
 </resources>

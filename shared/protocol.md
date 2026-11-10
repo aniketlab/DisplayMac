@@ -1,82 +1,84 @@
 # DisplayMac Binary Protocol Specification (v1.0)
 
-This document defines the wire protocol used between the **macOS Server** (`DisplayMacServer`) and the **Android Client** (`DisplayMacClient`) over TCP/UDP channels.
+This specification defines the wire protocol exchanged between **DisplayMacServer** (macOS host) and **DisplayMacClient** (Android client) across three TCP channels. All multi-byte integers and IEEE-754 floats are encoded in **Big-Endian** network byte order.
 
 ---
 
-## 1. Connection & Channels
+## 1. Transport Channels & Ports
 
-DisplayMac operates over two logical streams:
-1. **Control & Input Channel (TCP / Port 7100)**:
-   - Client Handshake & Display Capability Negotiation (Resolution, Max Refresh Rate, Codecs).
-   - Touch, Stylus (S-Pen), Keyboard, and Mouse Events.
-   - Flow control, heartbeat, and on-demand IDR/Keyframe requests.
-2. **Video Streaming Channel (TCP or Low-Latency UDP / Port 7101)**:
-   - High-throughput video stream consisting of packetized NAL units (HEVC / H.264).
+| Port | Stream | Direction | Purpose |
+| :--- | :--- | :--- | :--- |
+| `7100` | Control & Input | Bidirectional | Capability handshake, keepalive ping/pong, keyframe requests, touch & stylus events |
+| `7101` | Video | Host → Client | Annex-B HEVC video stream (IDR keyframes + P-frames) |
+| `7102` | Audio | Host → Client | Uncompressed 48 kHz 16-bit stereo LPCM audio frames |
+
+- **Discovery (Wi-Fi):** Host advertises Bonjour service type `_displaymac._tcp.` on port `7100`.
+- **USB-C Link:** `adb reverse` maps `tcp:7100`, `tcp:7101`, and `tcp:7102` so the client connects over `127.0.0.1`.
+- **Security Note:** Connections use plaintext TCP intended for USB-C loopback or trusted private LANs. Run `DisplayMacServer --usb-only` (or `./install.sh --usb-only`) to bind strictly to `127.0.0.1` and disable LAN exposure.
 
 ---
 
-## 2. Message Framing (Control & Input Channel)
+## 2. Control & Input Framing (Port `7100`)
 
-All control messages start with a fixed **8-byte header**:
+Every control packet starts with an **8-byte header**:
 
 ```
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|          Magic (0x444D)       |   Version (1) |  Msg Type     |
+|          Magic (0x444D)       | Version (0x01)|   Msg Type    |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                         Payload Length                        |
+|                      Payload Length (uint32)                  |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                        Payload Data...                        |
+|                         Payload Data...                       |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-- **Magic**: `0x444D` (ASCII `"DM"` for DisplayMac)
-- **Version**: `0x01`
-- **Msg Type** (1 byte):
-  - `0x01`: **Client Hello / Handshake** (Tablet announces width, height, fps, supported codecs)
-  - `0x02`: **Server Config / Ack** (Mac confirms virtual display bounds, chosen codec, bitrate)
-  - `0x03`: **Heartbeat / Ping**
-  - `0x04`: **Heartbeat / Pong**
-  - `0x05`: **Request Keyframe (IDR)** (Sent by client on decoder packet drop or sync loss)
-  - `0x10`: **Touch Event** (Multi-touch down/move/up)
-  - `0x11`: **Stylus Event** (S-Pen coordinates, pressure, tilt, button state)
-  - `0x12`: **Mouse / Trackpad Event** (Delta moves, scroll wheel, buttons)
-  - `0x13`: **Keyboard Event** (Keycodes, modifiers)
+- **Bounds:** `magic == 0x444D` (`"DM"`), `version == 0x01`, `0 <= payloadLength <= 65536`. Invalid headers close the connection immediately.
+
+### Message Types
+
+| Code | Name | Direction | Payload Size | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x01` | `ClientHello` | Client → Host | 18+ bytes | Display resolution, refresh rate, DPI, codec/feature flags, UTF-8 device name |
+| `0x02` | `ServerConfig` | Host → Client | 14 bytes | Confirmed codec, active FPS, stream dimensions, bitrate (kbps) |
+| `0x03` | `Ping` | Client → Host | 0 bytes | Periodic connection keepalive probe |
+| `0x04` | `Pong` | Host → Client | 0 bytes | Keepalive response |
+| `0x05` | `RequestKeyframe` | Client → Host | 0 bytes | Requests an immediate HEVC IDR keyframe |
+| `0x10` | `TouchEvent` | Client → Host | 18 bytes | Finger touch, double-tap, right-click, scroll, drag, or zoom |
+| `0x11` | `StylusEvent` | Client → Host | 18 bytes | Stylus proximity, hover, down/move/up, barrel button, pressure, tilt |
 
 ---
 
-## 3. Handshake Messages
+## 3. Handshake Payloads
 
-### A. Client Hello (`0x01`)
-Sent by the Android tablet immediately upon TCP connection:
+### `ClientHello` (`0x01`)
 
-| Offset | Field | Type | Description |
+| Offset | Field | Type | Constraints / Notes |
 | :--- | :--- | :--- | :--- |
-| 0 | `displayWidth` | `uint32_t` (Big Endian) | Screen width in pixels (e.g. `2960`) |
-| 4 | `displayHeight` | `uint32_t` (Big Endian) | Screen height in pixels (e.g. `1848`) |
-| 8 | `maxRefreshRate` | `uint32_t` (Big Endian) | Target refresh rate (e.g. `120`) |
-| 12 | `dpi` | `uint32_t` (Big Endian) | Density (e.g. `280`) |
-| 16 | `codecMask` | `uint8_t` | Bitmask: Bit 0 = H.264, Bit 1 = HEVC, Bit 2 = AV1 |
-| 17 | `flags` | `uint8_t` | Bit 0 = Stylus Supported, Bit 1 = HDR10 Supported |
+| `0` | `displayWidth` | `uint32` | Valid range: `320..7680` |
+| `4` | `displayHeight` | `uint32` | Valid range: `320..7680` |
+| `8` | `maxRefreshRate` | `uint32` | Valid range: `24..240` |
+| `12` | `dpi` | `uint32` | Physical density DPI |
+| `16` | `codecMask` | `uint8` | `0x01` = H.264, `0x02` = HEVC, `0x03` = AV1 |
+| `17` | `flags` | `uint8` | Bit 0 = Stylus supported, Bit 1 = HDR |
+| `18+` | `deviceName` | `utf8` (optional) | Up to 128 bytes UTF-8 device name (sanitized by host) |
 
-### B. Server Config (`0x02`)
-Server response acknowledging setup:
+### `ServerConfig` (`0x02`)
 
-| Offset | Field | Type | Description |
+| Offset | Field | Type | Notes |
 | :--- | :--- | :--- | :--- |
-| 0 | `selectedCodec` | `uint8_t` | `1` = H.264, `2` = HEVC, `3` = AV1 |
-| 1 | `activeFps` | `uint8_t` | Configured FPS (e.g. `120`) |
-| 2 | `streamWidth` | `uint32_t` | Virtual display active width |
-| 6 | `streamHeight` | `uint32_t` | Virtual display active height |
-| 10 | `targetBitrateKbps` | `uint32_t` | Video bitrate (e.g. `80000` = 80 Mbps) |
+| `0` | `selectedCodec` | `uint8` | `0x02` = HEVC |
+| `1` | `activeFps` | `uint8` | Active target frame rate |
+| `2` | `streamWidth` | `uint32` | Virtual display width in pixels |
+| `6` | `streamHeight` | `uint32` | Virtual display height in pixels |
+| `10` | `targetBitrateKbps` | `uint32` | Encoder target bitrate in kbps (`60000` USB / `35000` Wi-Fi) |
 
 ---
 
-## 4. Video Stream Framing (Port 7101)
+## 4. Video Stream Framing (Port `7101`)
 
-Each video frame packet consists of a **16-byte Video Header** followed by raw H.264 / HEVC NALU data:
+Each video packet begins with a **20-byte header**, followed by Annex-B (`0x00000001`-prefixed) HEVC NALUs (IDR frames prepend VPS/SPS/PPS):
 
 ```
  0                   1                   2                   3
@@ -84,47 +86,64 @@ Each video frame packet consists of a **16-byte Video Header** followed by raw H
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |          Magic (0x444D)       |  Frame Type   |     Codec     |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                          Frame Index                          |
+|                        Sequence Number                        |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                    Presentation Timestamp (PTS)               |
+|                    Presentation Timestamp (ns)                |
 |                                                               |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                         Payload Length                        |
+|                      Payload Length (uint32)                  |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                        NAL Units Data...                      |
+|                        Annex-B NALUs...                       |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-- **Frame Type**: `0x01` = IDR / Keyframe (contains SPS/PPS/VPS), `0x02` = P-Frame.
-- **Codec**: `0x02` = HEVC, `0x01` = AVC.
-- **Frame Index**: Incrementing sequence counter for loss detection.
-- **PTS**: Nanosecond timestamp from host capture clock (used for jitter-free A/V sync and frame pacing).
+- **Frame Types:** `0x01` = Keyframe (IDR + parameter sets), `0x02` = P-frame.
+- **Bounds:** `0 < payloadLength <= 16777216` (16 MiB).
 
 ---
 
-## 5. Input Packets (Touch & S-Pen Stylus)
+## 5. Audio Stream Framing (Port `7102`)
 
-Coordinates are normalized as **32-bit Floating Point values** in the range `[0.0, 1.0]`, completely eliminating any screen resolution or scaling discrepancy between macOS and Android.
+Each audio packet carries an **8-byte header** followed by raw 48 kHz, 16-bit signed little-endian stereo LPCM samples:
 
-### Stylus Packet (`0x11`)
 ```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-| Action (Down/Move/Up/Hover)   | Buttons State |    Reserved   |
+|          Magic (0x444D)       | FrameType(03) |   Reserved    |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                         Normalized X                          |
+|                      Payload Length (uint32)                  |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                         Normalized Y                          |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                    Pressure (0.0 to 1.0)                      |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                      Tilt (Degrees / Rad)                     |
+|                  48 kHz 16-bit Stereo LPCM...                 |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-- **Action**:
-  - `0x01`: Pen Down
-  - `0x02`: Pen Move
-  - `0x03`: Pen Up
-  - `0x04`: Pen Hover (S-Pen floating over screen without contact)
-- **Buttons**:
-  - Bit 0 = S-Pen Barrel Button pressed (maps to Secondary Click / Right Click).
+- **Bounds:** `0 < payloadLength <= 262144` (256 KiB).
+
+---
+
+## 6. Input Payloads (`0x10` & `0x11`)
+
+Both `TouchEvent` and `StylusEvent` use normalized coordinates `[0.0, 1.0]` mapped against the active macOS virtual display bounds.
+
+### `TouchEvent` (`0x10`, 18 bytes)
+
+| Offset | Field | Type | Notes |
+| :--- | :--- | :--- | :--- |
+| `0` | `action` | `uint8` | `1`=Tap, `2`=DoubleTap, `3`=RightClick, `4`=Scroll, `5`=DragStart, `6`=DragMove, `7`=DragEnd, `8`=Zoom |
+| `1` | `phase` | `uint8` | `1`=Began, `2`=Changed, `3`=Ended, `4`=Cancelled |
+| `2` | `normalizedX` | `float32` | `[0.0, 1.0]` |
+| `6` | `normalizedY` | `float32` | `[0.0, 1.0]` |
+| `10` | `deltaX` | `float32` | Horizontal scroll delta |
+| `14` | `deltaY` | `float32` | Vertical scroll / pinch zoom delta |
+
+### `StylusEvent` (`0x11`, 18 bytes)
+
+| Offset | Field | Type | Notes |
+| :--- | :--- | :--- | :--- |
+| `0` | `action` | `uint8` | `1`=Down, `2`=Move, `3`=Up, `4`=Hover, `5`=HoverExit |
+| `1` | `buttons` | `uint8` | Bit 0 = Primary barrel button (secondary click) |
+| `2` | `normalizedX` | `float32` | `[0.0, 1.0]` |
+| `6` | `normalizedY` | `float32` | `[0.0, 1.0]` |
+| `10` | `pressure` | `float32` | `[0.0, 1.0]` |
+| `14` | `tilt` | `float32` | Stylus tilt axis in radians |

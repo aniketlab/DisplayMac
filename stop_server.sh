@@ -1,61 +1,42 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# DisplayMac 🛑 Server Stop & Hardware Reset Utility
-# Stops all running DisplayMac instances, releases virtual displays,
-# clears ADB reverse tunnels, and restores physical Mac audio.
+# DisplayMac Server Stop & Reset Utility
 # ==============================================================================
 
-set -e
+set -euo pipefail
 
 echo "============================================================"
-echo "  DisplayMac 🛑 Stopping Server & Resetting Hardware"
+echo "  Stopping DisplayMacServer"
 echo "============================================================"
 
-# 1. Terminate running DisplayMacServer processes & unload LaunchAgent
-echo "[1/4] Stopping active DisplayMacServer instances..."
+USER_ID="$(id -u)"
 PLIST_FILE="$HOME/Library/LaunchAgents/com.displaymac.server.plist"
+
+launchctl bootout "gui/$USER_ID/com.displaymac.server" 2>/dev/null || true
 if [ -f "$PLIST_FILE" ]; then
-    echo "• Pausing LaunchAgent background service..."
     launchctl unload "$PLIST_FILE" 2>/dev/null || true
 fi
 
-PIDS=$(pgrep -f "DisplayMacServer" || true)
+PIDS="$(pgrep -x "DisplayMacServer" || true)"
 if [ -n "$PIDS" ]; then
-    echo "• Found running PID(s): $PIDS. Terminating gracefully..."
-    pkill -f "DisplayMacServer" 2>/dev/null || true
+    echo "Stopping DisplayMacServer (PID: $PIDS)..."
+    pkill -x "DisplayMacServer" 2>/dev/null || true
     sleep 0.5
-    # Force kill if still lingering
-    pkill -9 -f "DisplayMacServer" 2>/dev/null || true
-    echo "✅ DisplayMac processes stopped. Virtual displays released by WindowServer."
+    pkill -9 -x "DisplayMacServer" 2>/dev/null || true
+    echo "Server stopped; virtual display released."
 else
-    echo "• No active DisplayMacServer process found."
+    echo "No active DisplayMacServer process found."
 fi
 
-# 2. Clear ADB reverse socket forwards
-echo "[2/4] Resetting ADB reverse tunnels..."
 ADB_BIN="adb"
-if ! command -v adb &> /dev/null; then
-    if [ -f "./macos-server/platform-tools/adb" ]; then
-        ADB_BIN="./macos-server/platform-tools/adb"
-    fi
+if ! command -v adb &> /dev/null && [ -f "./macos-server/platform-tools/adb" ]; then
+    ADB_BIN="./macos-server/platform-tools/adb"
 fi
-
 if command -v "$ADB_BIN" &> /dev/null; then
-    "$ADB_BIN" reverse --remove-all 2>/dev/null || true
-    echo "✅ ADB reverse tunnels (7100, 7101, 7102) cleared."
-else
-    echo "• ADB not running or not found. Tunnels clear."
+    for port in tcp:7100 tcp:7101 tcp:7102; do
+        "$ADB_BIN" reverse --remove "$port" 2>/dev/null || true
+    done
+    echo "Cleared DisplayMac ADB reverse tunnels (7100, 7101, 7102)."
 fi
 
-# 3. Clean temporary runtime files
-echo "[3/4] Cleaning temporary runtime locks..."
-rm -f /tmp/displaymac_audio_name.txt /tmp/displaymac*.lock /tmp/displaymac*.log 2>/dev/null || true
-
-# 4. Hardware Audio Check
-echo "[4/4] Hardware audio status..."
-echo "• Physical speakers (Mac Mini / BenQ / HDMI) are active."
-
-echo ""
-echo "============================================================"
-echo "  ✅ DisplayMac Server stopped. Mac hardware 100% reset!"
-echo "============================================================"
+echo "Done."

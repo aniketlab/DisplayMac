@@ -6,12 +6,18 @@ import java.nio.ByteOrder
 object ProtocolConstants {
     const val MAGIC: Short = 0x444D // "DM"
     const val VERSION: Byte = 0x01
+
     const val CONTROL_PORT = 7100
     const val VIDEO_PORT = 7101
     const val AUDIO_PORT = 7102
     const val BONJOUR_SERVICE_TYPE = "_displaymac._tcp."
 
-    // Message Types
+    // Upper bounds to guard against corrupted or malformed frame length headers
+    const val MAX_CONTROL_PAYLOAD_BYTES = 64 * 1024
+    const val MAX_VIDEO_FRAME_BYTES = 16 * 1024 * 1024
+    const val MAX_AUDIO_FRAME_BYTES = 256 * 1024
+
+    // Control Message Types
     const val MSG_CLIENT_HELLO: Byte = 0x01
     const val MSG_SERVER_CONFIG: Byte = 0x02
     const val MSG_PING: Byte = 0x03
@@ -24,6 +30,9 @@ object ProtocolConstants {
     const val FRAME_TYPE_KEYFRAME: Byte = 0x01
     const val FRAME_TYPE_P_FRAME: Byte = 0x02
     const val FRAME_TYPE_AUDIO: Byte = 0x03
+
+    const val CODEC_HEVC: Byte = 0x02
+    const val CLIENT_FLAGS_STYLUS_AND_HDR: Byte = 0x03
 
     object TouchAction {
         const val TAP: Byte = 0x01
@@ -43,19 +52,32 @@ object ProtocolConstants {
         const val CANCELLED: Byte = 0x04
     }
 
-    fun buildClientHello(width: Int, height: Int, refreshRate: Int, dpi: Int, deviceName: String = ""): ByteArray {
+    object StylusAction {
+        const val DOWN: Byte = 0x01
+        const val MOVE: Byte = 0x02
+        const val UP: Byte = 0x03
+        const val HOVER: Byte = 0x04
+        const val HOVER_EXIT: Byte = 0x05
+    }
+
+    fun buildClientHello(
+        width: Int,
+        height: Int,
+        refreshRate: Int,
+        dpi: Int,
+        deviceName: String = ""
+    ): ByteArray {
         val nameBytes = deviceName.toByteArray(Charsets.UTF_8)
         val payload = ByteBuffer.allocate(18 + nameBytes.size).order(ByteOrder.BIG_ENDIAN)
         payload.putInt(width)
         payload.putInt(height)
         payload.putInt(refreshRate)
         payload.putInt(dpi)
-        payload.put(0x02.toByte()) // Codec: HEVC
-        payload.put(0x03.toByte()) // Flags: Stylus + HDR
+        payload.put(CODEC_HEVC)
+        payload.put(CLIENT_FLAGS_STYLUS_AND_HDR)
         if (nameBytes.isNotEmpty()) {
             payload.put(nameBytes)
         }
-        
         return buildControlMessage(MSG_CLIENT_HELLO, payload.array())
     }
 

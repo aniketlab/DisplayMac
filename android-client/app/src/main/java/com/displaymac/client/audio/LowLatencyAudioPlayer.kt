@@ -6,8 +6,7 @@ import android.media.AudioTrack
 import android.util.Log
 
 /**
- * High-fidelity, ultra-low latency audio renderer for Galaxy Tab S10 Ultra quad AKG speakers.
- * Streams 48kHz 16-bit Stereo PCM directly over the zero-latency USB wire.
+ * Low-latency 48 kHz 16-bit stereo PCM audio renderer backed by AudioTrack.
  */
 class LowLatencyAudioPlayer {
     companion object {
@@ -26,7 +25,6 @@ class LowLatencyAudioPlayer {
                 AudioFormat.CHANNEL_OUT_STEREO,
                 AudioFormat.ENCODING_PCM_16BIT
             )
-            // Double buffer size for jitter tolerance while keeping sub-10ms buffer
             val bufferSize = (minBufferSize * 2).coerceAtLeast(4096)
 
             val track = AudioTrack.Builder()
@@ -51,7 +49,7 @@ class LowLatencyAudioPlayer {
             track.play()
             this.audioTrack = track
             this.isPlaying = true
-            Log.i(TAG, "⚡ LowLatencyAudioPlayer active: 48kHz Stereo PCM to Tab S10 Ultra speakers")
+            Log.i(TAG, "LowLatencyAudioPlayer active: 48 kHz stereo PCM")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start AudioTrack", e)
         }

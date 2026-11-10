@@ -458,22 +458,6 @@ static CFStringRef get_device_name(void) {
     }
     pthread_mutex_unlock(&gPlugIn_StateMutex);
 
-    FILE *f = fopen("/tmp/displaymac_audio_name.txt", "r");
-    if (f) {
-        char buf[256];
-        if (fgets(buf, sizeof(buf), f)) {
-            size_t len = strlen(buf);
-            while (len > 0 && (buf[len - 1] == '\r' || buf[len - 1] == '\n')) {
-                buf[--len] = '\0';
-            }
-            fclose(f);
-            if (len > 0) {
-                return CFStringCreateWithCString(NULL, buf, kCFStringEncodingUTF8);
-            }
-        } else {
-            fclose(f);
-        }
-    }
     return CFStringCreateWithCString(NULL, "DisplayMac Audio", kCFStringEncodingUTF8);
 }
 

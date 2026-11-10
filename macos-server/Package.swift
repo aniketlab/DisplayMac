@@ -14,10 +14,15 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
+        .target(
+            name: "DisplayMacProtocol",
+            dependencies: [],
+            path: "Sources/DisplayMacProtocol"
+        ),
         .executableTarget(
             name: "DisplayMacServer",
-            dependencies: [],
-            path: "Sources",
+            dependencies: ["DisplayMacProtocol"],
+            path: "Sources/DisplayMacServer",
             linkerSettings: [
                 .linkedFramework("ScreenCaptureKit"),
                 .linkedFramework("VideoToolbox"),
@@ -27,6 +32,11 @@ let package = Package(
                 .linkedFramework("Network"),
                 .linkedFramework("IOKit")
             ]
+        ),
+        .testTarget(
+            name: "DisplayMacProtocolTests",
+            dependencies: ["DisplayMacProtocol"],
+            path: "Tests/DisplayMacProtocolTests"
         )
     ]
 )

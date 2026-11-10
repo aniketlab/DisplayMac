@@ -19,3 +19,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Scope Note:
+This MIT license applies to original DisplayMac source code (`macos-server/Sources/`,
+`android-client/`, installer scripts, and documentation). The standalone CoreAudio
+HAL driver source (`macos-server/Driver/DisplayMacAudio.c`) is derived from
+Existential Audio Inc.'s BlackHole and remains licensed under GPL-3.0. See
+THIRD_PARTY_NOTICES.md for full details.

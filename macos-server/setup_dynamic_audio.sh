@@ -1,56 +1,71 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# DisplayMac - Native Dynamic Audio Driver Setup
-# Compiles directly using clang (Zero Xcode.app, Homebrew, or external clones needed!)
-# Dynamically exposes the connected tablet (e.g. "Samsung Galaxy Tab S10 Ultra") 
-# in the macOS Sound menu!
+# DisplayMac - Virtual Audio HAL Driver Setup
+# Compiles DisplayMacAudio.c (GPL-3.0, derived from BlackHole) directly via clang
+# as a Universal macOS binary (arm64 + x86_64).
 # ==============================================================================
 
-set -e
+set -euo pipefail
 
 echo "============================================================"
-echo "  DisplayMac - Dynamic Hardware Audio Driver Setup"
+echo "  DisplayMac - Virtual Audio Driver Setup"
 echo "============================================================"
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRIVER_SRC="$DIR/Driver/DisplayMacAudio.c"
-BUNDLE_DIR="/tmp/DisplayMacAudio.driver"
+BUNDLE_DIR="$(mktemp -d)/DisplayMacAudio.driver"
 DRIVER_DEST="/Library/Audio/Plug-Ins/HAL/DisplayMacAudio.driver"
-NAME_FILE="/tmp/displaymac_audio_name.txt"
 
 if [ ! -f "$DRIVER_SRC" ]; then
-    echo "❌ Error: $DRIVER_SRC not found."
+    echo "Error: $DRIVER_SRC not found."
     exit 1
 fi
 
-# 1. Set initial dynamic audio device name (Neutral default)
-echo "DisplayMac Audio" > "$NAME_FILE"
-chmod 666 "$NAME_FILE"
+trap 'rm -rf "$(dirname "$BUNDLE_DIR")"' EXIT
 
-# 2. Compile driver bundle directly using clang
-echo "[1/3] Compiling native Apple Silicon driver bundle..."
-rm -rf "$BUNDLE_DIR"
+echo "[1/3] Compiling DisplayMacAudio HAL driver bundle..."
 mkdir -p "$BUNDLE_DIR/Contents/MacOS"
 
-SDK_PATH=$(xcrun --show-sdk-path)
+SDK_PATH="$(xcrun --show-sdk-path)"
+ARCH_FLAGS=(-arch arm64 -arch x86_64)
 
-clang -bundle \
-    -arch arm64 \
+if ! clang -bundle \
+    "${ARCH_FLAGS[@]}" \
     -isysroot "$SDK_PATH" \
     -O3 \
     -DkNumber_Of_Channels=2 \
     -DkDriver_Name=\"DisplayMacAudio\" \
     -DkDevice_Name=\"DisplayMacAudio\" \
+    -DkManufacturer_Name=\"DisplayMac\" \
+    -DkHas_Driver_Name_Format=false \
     -DkPlugIn_BundleID=\"com.displaymac.audio\" \
     -framework CoreAudio \
     -framework CoreFoundation \
     -framework AudioToolbox \
     -framework Accelerate \
     -o "$BUNDLE_DIR/Contents/MacOS/DisplayMacAudio" \
-    "$DRIVER_SRC"
+    "$DRIVER_SRC" 2>/dev/null; then
+    HOST_ARCH="$(uname -m)"
+    echo "Universal build unavailable; building for host architecture ($HOST_ARCH)..."
+    clang -bundle \
+        -arch "$HOST_ARCH" \
+        -isysroot "$SDK_PATH" \
+        -O3 \
+        -DkNumber_Of_Channels=2 \
+        -DkDriver_Name=\"DisplayMacAudio\" \
+        -DkDevice_Name=\"DisplayMacAudio\" \
+        -DkManufacturer_Name=\"DisplayMac\" \
+        -DkHas_Driver_Name_Format=false \
+        -DkPlugIn_BundleID=\"com.displaymac.audio\" \
+        -framework CoreAudio \
+        -framework CoreFoundation \
+        -framework AudioToolbox \
+        -framework Accelerate \
+        -o "$BUNDLE_DIR/Contents/MacOS/DisplayMacAudio" \
+        "$DRIVER_SRC"
+fi
 
-# 3. Create driver Info.plist
-cat << 'EOF' > "$BUNDLE_DIR/Contents/Info.plist"
+cat <<'EOF' > "$BUNDLE_DIR/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -89,23 +104,13 @@ cat << 'EOF' > "$BUNDLE_DIR/Contents/Info.plist"
 </plist>
 EOF
 
-# 4. Install driver to /Library/Audio/Plug-Ins/HAL/
-echo "[2/3] Installing driver to /Library/Audio/Plug-Ins/HAL/..."
+echo "[2/3] Installing driver to $DRIVER_DEST..."
 sudo rm -rf "$DRIVER_DEST"
 sudo cp -R "$BUNDLE_DIR" "$DRIVER_DEST"
 sudo chown -R root:wheel "$DRIVER_DEST"
-rm -rf "$BUNDLE_DIR"
 
-# 5. Reload CoreAudio daemon
-echo "[3/3] Reloading macOS CoreAudio daemon..."
+echo "[3/3] Reloading CoreAudio daemon..."
 sudo killall -9 coreaudiod 2>/dev/null || true
 sleep 1
 
-echo ""
-echo "============================================================"
-echo "🎉 SUCCESS! DisplayMac Audio Driver Ready!"
-echo "• Open Control Center > Sound (Speaker icon) in your Menu Bar."
-echo "• You will see: 'DisplayMac Audio' (idle/neutral state)."
-echo "• When your tablet connects: it dynamically switches to your tablet name!"
-echo "• Your Mac's built-in speakers & BenQ audio remain 100% original."
-echo "============================================================"
+echo "Done: 'DisplayMac Audio' is now available in System Settings > Sound."
