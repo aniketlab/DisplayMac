@@ -59,6 +59,8 @@ local.properties
 # Keystore files
 *.jks
 *.keystore
+keystore.properties
+**/keystore.properties
 
 # Build artifacts
 *.apk
