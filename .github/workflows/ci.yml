@@ -27,7 +27,7 @@ jobs:
 
   macos:
     name: macOS Host (Swift Build/Test, CoreAudio Driver & Shellcheck)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Build & Test macos-server
