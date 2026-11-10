@@ -9,6 +9,8 @@
 Native `ScreenCaptureKit` + `VideoToolbox` HEVC Streaming • USB-C (`adb reverse`) & Wi-Fi (Bonjour) • Dynamic HiDPI Virtual Display • Pressure-Sensitive Stylus & Multi-Touch
 
 <p align="center">
+  <a href="https://github.com/aniketlab/DisplayMac/releases/latest"><img src="https://img.shields.io/github/v/release/aniketlab/DisplayMac?style=flat-square" alt="Latest Release"></a>
+  <a href="https://github.com/aniketlab/DisplayMac/actions/workflows/ci.yml"><img src="https://github.com/aniketlab/DisplayMac/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT%20%2F%20GPL--3.0%20(Audio%20Driver)-blue?style=flat-square" alt="License"></a>
   <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-14.0%2B%20(Sonoma%20%2B)-black?logo=apple&style=flat-square" alt="macOS"></a>
   <a href="https://www.android.com/"><img src="https://img.shields.io/badge/Android-8.0%2B%20(API%2026%2B)-3DDC84?logo=android&logoColor=white&style=flat-square" alt="Android"></a>
@@ -66,14 +68,18 @@ cd DisplayMac
 
 The installer compiles the universal CoreAudio HAL driver, installs standalone Google `adb` if needed, builds `DisplayMacServer` in release mode, and activates the `com.displaymac.server` LaunchAgent.
 
-### 2. Build & Install the Android App
+### 2. Install the Android App
+
+Download the latest signed APK from [**GitHub Releases**](https://github.com/aniketlab/DisplayMac/releases/latest) and install it on your Android device (Android 8.0+ / API 26+).
+
+Or build from source:
 
 ```bash
 cd android-client
 ./gradlew testDebugUnitTest assembleDebug
 ./gradlew installDebug
 ```
-On Windows, use `gradlew.bat assembleDebug` or `scripts\deploy_android.bat`.
+On Windows, use `gradlew.bat assembleDebug` or `scripts\deploy_android.bat`. To build a signed release APK locally (`assembleRelease`), configure `android-client/keystore.properties` (see [docs/setup_guide.md](docs/setup_guide.md)).
 
 ### 3. Connect
 - **Wired (USB-C):** Enable **USB Debugging** on your tablet, connect via USB-C, and tap **Connect with USB-C**.

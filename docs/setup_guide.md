@@ -47,7 +47,12 @@ If booting a desktop Mac without a monitor:
 
 ### Requirements
 - Android 8.0+ (API 26+) tablet or phone with hardware HEVC decoding
-- Android SDK / JDK 17 (to build from source)
+- Android SDK / JDK 17 (if building from source)
+
+### Install Pre-built Release APK
+1. Download the signed release APK (`DisplayMac-v1.0.0.apk` or latest) from [GitHub Releases](https://github.com/aniketlab/DisplayMac/releases/latest).
+2. *(Optional)* Verify the `.sha256` checksum published with the release assets.
+3. Install the APK on your Android device. If upgrading from a previously installed debug build, uninstall the debug app first because debug and release APKs use different signing keys.
 
 ### Build from Source
 On macOS / Linux:
@@ -60,6 +65,8 @@ On Windows:
 cd android-client
 gradlew.bat testDebugUnitTest assembleDebug
 ```
+
+To build a signed, R8-minified release APK (`assembleRelease`), create a local `android-client/keystore.properties` file (ignored by Git) with `storeFile`, `storePassword`, `keyAlias`, and `keyPassword`.
 
 To install onto an ADB-connected device:
 - macOS / Linux: `cd android-client && ./gradlew installDebug`
