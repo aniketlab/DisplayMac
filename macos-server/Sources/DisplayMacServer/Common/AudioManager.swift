@@ -28,14 +28,16 @@ public final class AudioManager {
             mElement: kAudioObjectPropertyElementMain
         )
         var cfName: CFString = name as CFString
-        let status = AudioObjectSetPropertyData(
-            dev.id,
-            &propAddress,
-            0,
-            nil,
-            UInt32(MemoryLayout<CFString>.size),
-            &cfName
-        )
+        let status = withUnsafePointer(to: &cfName) { ptr in
+            AudioObjectSetPropertyData(
+                dev.id,
+                &propAddress,
+                0,
+                nil,
+                UInt32(MemoryLayout<CFString>.size),
+                ptr
+            )
+        }
         if status == noErr {
             print("[Audio] Virtual audio device name updated to '\(name)'")
         }
@@ -269,17 +271,19 @@ public final class AudioManager {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-        var value: CFString?
-        var propertySize = UInt32(MemoryLayout<CFString?>.size)
-        let status = AudioObjectGetPropertyData(
-            deviceID,
-            &propertyAddress,
-            0,
-            nil,
-            &propertySize,
-            &value
-        )
-        guard status == noErr, let cfValue = value else { return nil }
+        var value: Unmanaged<CFString>?
+        var propertySize = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        let status = withUnsafeMutablePointer(to: &value) { ptr in
+            AudioObjectGetPropertyData(
+                deviceID,
+                &propertyAddress,
+                0,
+                nil,
+                &propertySize,
+                ptr
+            )
+        }
+        guard status == noErr, let cfValue = value?.takeRetainedValue() else { return nil }
         return cfValue as String
     }
 }

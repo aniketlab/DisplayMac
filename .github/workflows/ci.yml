@@ -7,6 +7,14 @@ on:
     branches: [ main ]
 
 jobs:
+  scripts:
+    name: Shell Scripts (ShellCheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint Shell Scripts
+        run: shellcheck install.sh uninstall.sh stop_server.sh macos-server/*.sh scripts/*.sh
+
   android:
     name: Android Client (Test, Lint & Build)
     runs-on: ubuntu-latest
@@ -15,7 +23,7 @@ jobs:
         working-directory: android-client
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -26,7 +34,7 @@ jobs:
           ./gradlew testDebugUnitTest lintDebug assembleDebug
 
   macos:
-    name: macOS Host (Swift Build/Test, CoreAudio Driver & Shellcheck)
+    name: macOS Host (Swift Build/Test & CoreAudio Driver)
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -44,9 +52,6 @@ jobs:
             -DkDriver_Name=\"DisplayMacAudio\" \
             -DkDevice_Name=\"DisplayMacAudio\" \
             -DkManufacturer_Name=\"DisplayMac\" \
-            -DkHas_Driver_Name_Format=false \
             -DkPlugIn_BundleID=\"com.displaymac.audio\" \
             -framework CoreAudio -framework CoreFoundation -framework AudioToolbox -framework Accelerate \
             -o /tmp/DisplayMacAudio Driver/DisplayMacAudio.c
-      - name: Lint Shell Scripts
-        run: shellcheck install.sh uninstall.sh stop_server.sh macos-server/*.sh scripts/*.sh

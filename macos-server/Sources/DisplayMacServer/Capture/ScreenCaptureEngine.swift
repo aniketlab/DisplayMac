@@ -1,5 +1,6 @@
 import Foundation
 import ScreenCaptureKit
+import CoreAudio
 import CoreMedia
 import CoreVideo
 import AVFoundation
@@ -119,7 +120,7 @@ public final class ScreenCaptureEngine: NSObject, SCStreamOutput, SCStreamDelega
         let numBuffers = Int(audioBufferList.mNumberBuffers)
 
         if isFloat {
-            let buffers = UnsafeBufferPointer(start: &audioBufferList.mBuffers, count: numBuffers)
+            let buffers = UnsafeMutableAudioBufferListPointer(&audioBufferList)
             if isNonInterleaved && numBuffers >= 2 {
                 guard let leftPtr = buffers[0].mData?.assumingMemoryBound(to: Float.self),
                       let rightPtr = buffers[1].mData?.assumingMemoryBound(to: Float.self) else { return nil }

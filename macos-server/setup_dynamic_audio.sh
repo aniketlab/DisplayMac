@@ -37,7 +37,6 @@ if ! clang -bundle \
     -DkDriver_Name=\"DisplayMacAudio\" \
     -DkDevice_Name=\"DisplayMacAudio\" \
     -DkManufacturer_Name=\"DisplayMac\" \
-    -DkHas_Driver_Name_Format=false \
     -DkPlugIn_BundleID=\"com.displaymac.audio\" \
     -framework CoreAudio \
     -framework CoreFoundation \
@@ -55,7 +54,6 @@ if ! clang -bundle \
         -DkDriver_Name=\"DisplayMacAudio\" \
         -DkDevice_Name=\"DisplayMacAudio\" \
         -DkManufacturer_Name=\"DisplayMac\" \
-        -DkHas_Driver_Name_Format=false \
         -DkPlugIn_BundleID=\"com.displaymac.audio\" \
         -framework CoreAudio \
         -framework CoreFoundation \
